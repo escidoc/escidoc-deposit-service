@@ -643,6 +643,8 @@ public class SessionManager extends Thread {
 	ingester.setInitialLifecycleStatus(PublicStatus.PENDING); // ingester.getLifecycleStatus().get(0));
 	ingester.setMimeType("text/xml"); // ingester.getMimeTypes().get(0));
 
+	ingester.ingest();
+
 	synchronized (m_configurations) {
 	    logger.info("Successful saved a configuration with the id "
 		    + configurationId + " in the directory " + m_baseDir + "/"

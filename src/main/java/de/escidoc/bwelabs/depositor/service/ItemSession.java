@@ -41,16 +41,19 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.escidoc.core.client.ingest.filesystem.FileIngester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
+import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
 import de.escidoc.bwelabs.depositor.saxHandler.ContainerHandler;
 import de.escidoc.bwelabs.depositor.saxHandler.ItemHandler;
 import de.escidoc.bwelabs.depositor.utility.EscidocConnector;
 import de.escidoc.bwelabs.depositor.utility.EscidocUtility;
 import de.escidoc.bwelabs.depositor.utility.Utility;
+import de.escidoc.core.resources.common.properties.PublicStatus;
 
 /**
  * A class handles a storage of content files into an infrastructure.
@@ -219,12 +222,41 @@ public class ItemSession extends Thread {
 	String handle = _configuration
 		.getProperty(Constants.PROPERTY_USER_HANDLE);
 
-	PostMethod post = null;
-	String itemId = null;
-	try {
-	    post = EscidocConnector.createItemInContainer(escidocBaseUrl,
-		    containerId, handle, itemXml);
-	}
+	
+	
+	
+	
+	
+//	PostMethod post = null;
+//	String itemId = null;
+//	try {
+//	    post = EscidocConnector.createItemInContainer(escidocBaseUrl,
+//		    containerId, handle, itemXml);
+//	}
+
+	FileIngester ingester = new FileIngester(escidocBaseUrl,handle,containerId);
+
+	ingester.addFile(_pathToContentFile);
+	ingester.setItemContentModel(_configuration
+		.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
+	ingester.setContext(_configuration
+		.getProperty(Configuration.PROPERTY_CONTEXT_ID));
+	ingester.setContentCategory("ORIGINAL");
+	ingester.setInitialLifecycleStatus(PublicStatus.PENDING); // ingester.getLifecycleStatus().get(0));
+	ingester.setMimeType("text/xml"); // ingester.getMimeTypes().get(0));
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 
 	catch (Throwable e) {
 
