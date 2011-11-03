@@ -1,0 +1,80 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.escidoc.core.services</groupId>
+	<artifactId>deposit-service</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>war</packaging>
+	<name>Deposit Service</name>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>org.escidoc.core.client.ingest</groupId>
+			<artifactId>eSciDocIngestClientAPI</artifactId>
+			<version>0.9-SNAPSHOT</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>servlet-api</artifactId>
+			<version>2.5</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.6.1</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.0</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+		
+			<plugin>
+				<groupId>com.mycila.maven-license-plugin</groupId>
+				<artifactId>maven-license-plugin</artifactId>
+				<version>1.9.0</version>
+				<configuration>
+					<header>${basedir}/etc/header.txt</header>
+					<strictCheck>true</strictCheck>
+					<failIfMissing>false</failIfMissing>
+					<includes>
+						<include>src/**</include>
+						<include>**/test/**</include>
+					</includes>
+					<excludes>
+						<exclude>target/**</exclude>
+						<exclude>src/main/java/biz/**</exclude>
+						<exclude>src/main/resources/**</exclude>
+						<exclude>src/main/javadoc/**</exclude>
+						<exclude>src/main/webapp/**</exclude>
+						<exclude>src/main/assembly/**</exclude>
+						<exclude>src/site/**</exclude>
+						<exclude>src/test/javadoc/**</exclude>
+						<exclude>src/test/site/**</exclude>
+						<exclude>.clover/**</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		
+		</plugins>
+	</build>
+	
+</project>
