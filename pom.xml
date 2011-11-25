@@ -8,11 +8,15 @@
 	<name>Deposit Service</name>
 
 	<dependencies>
-
+<dependency>
+    <groupId>commons-httpclient</groupId>
+    <artifactId>commons-httpclient</artifactId>
+    <version>3.1</version>
+</dependency>
 		<dependency>
 			<groupId>org.escidoc.core.client.ingest</groupId>
-			<artifactId>eSciDocIngestClientAPI</artifactId>
-			<version>0.9-SNAPSHOT</version>
+			<artifactId>eSciDocDepositAPI</artifactId>
+			<version>0.9.1-SNAPSHOT</version>
 		</dependency>
 		
 		<dependency>
