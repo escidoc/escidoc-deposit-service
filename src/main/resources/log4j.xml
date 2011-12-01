@@ -27,16 +27,9 @@
     </layout>
   </appender>
  
-  <!-- Category-specific settings -->
-  <category name="depositor">
-    <priority value="DEBUG" />
-  </category>
- 
-  <!-- Default level and appender if not explicitly defined -->
   <root>
     <priority value="DEBUG" />
     <appender-ref ref="Console"/>
-    <appender-ref ref="RollingFile"/>
   </root>
   
 </log4j:configuration>

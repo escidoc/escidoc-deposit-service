@@ -244,6 +244,7 @@ public class ItemSession extends Thread {
 	ingester.setMimeType("text/xml"); // ingester.getMimeTypes().get(0));
 
 	try {
+	    ingester.setForceCreate(true);
 	    ingester.ingest();
 	    // FIXME
 	} catch (ConfigurationException e) {

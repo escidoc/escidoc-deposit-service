@@ -99,6 +99,8 @@ public class DepositorServlet extends HttpServlet {
     @Override
     public void doPut(final HttpServletRequest request,
 	    final HttpServletResponse response) {
+	LOGGER.debug("PUT");
+	System.out.println("PUT");
 	String pathInfo = request.getPathInfo();
 
 	InputStream is = null;
@@ -116,6 +118,8 @@ public class DepositorServlet extends HttpServlet {
 	    }
 	}
 
+	LOGGER.debug("pathInfo: " + pathInfo);
+	System.out.println(pathInfo);
 	if (PATH_FOR_SENDING_NEW_CONFIGURATION.equals(pathInfo)) {
 	    if (is == null) {
 		String message = "Configuration stream is null";
@@ -180,6 +184,7 @@ public class DepositorServlet extends HttpServlet {
 			response.sendError(
 				HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 				e.getMessage());
+			LOGGER.error("ups", e);
 		    } catch (IOException ioe) {
 			LOGGER.warn("Could not send error to eSyncDemon", ioe);
 		    }
@@ -210,6 +215,7 @@ public class DepositorServlet extends HttpServlet {
      */
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) {
+	LOGGER.debug("POST");
 	String pathInfo = request.getPathInfo();
 	String configId = pathInfo.substring(1);
 	InputStream is = null;
@@ -226,7 +232,9 @@ public class DepositorServlet extends HttpServlet {
 		LOGGER.warn("Could not send error to eSyncDemon", ioe);
 	    }
 	}
+
 	if (is == null) {
+
 	    String message = "A stream with the content file is null";
 	    LOGGER.error(message);
 	    try {
@@ -235,10 +243,12 @@ public class DepositorServlet extends HttpServlet {
 		LOGGER.warn("Could not send error to eSyncDemon", ioe);
 	    }
 	} else {
+
 	    try {
 		String checkSumValue = request.getHeader("X-ESciDoc-CheckSum");
 		String fileName = request.getHeader("Content-Disposition");
 		manager.increaseThreadsNumber();
+
 		if (manager
 			.checkCheckSum(configId, checkSumValue, is, fileName)) {
 		    response.setStatus(HttpServletResponse.SC_OK);
@@ -307,6 +317,8 @@ public class DepositorServlet extends HttpServlet {
     @Override
     public void doDelete(HttpServletRequest request,
 	    HttpServletResponse response) {
+	LOGGER.debug("DELETE");
+	System.out.println("DELETE");
 	String pathInfo = request.getPathInfo();
 	String configId = pathInfo.substring(1);
 	try {

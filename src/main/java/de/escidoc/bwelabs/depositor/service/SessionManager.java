@@ -553,6 +553,7 @@ public class SessionManager extends Thread {
 	    throw new DepositorException(ERR_MAX_THREADS_);
 	}
 
+	logger.debug("Checking configuration");
 	checkConfiguration(configurationStream);
 
     }
@@ -593,11 +594,21 @@ public class SessionManager extends Thread {
 
 	    configurationId = configProperties
 		    .getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
+	    logger.debug("Configuration ID: " + configurationId);
+
+	    if (configProperties.isValid()) {
+		logger.debug("Config is valid.");
+	    } else {
+		logger.debug("Config is invalid.");
+	    }
 
 	} catch (InvalidPropertiesFormatException e) {
 	    logger.error(e.getMessage());
 	    throw new WrongFormatException(e.getMessage(), e);
 	} catch (IOException e) {
+	    logger.error(e.getMessage());
+	    throw new DepositorException(e.getMessage(), e);
+	} catch (NoSuchAlgorithmException e) {
 	    logger.error(e.getMessage());
 	    throw new DepositorException(e.getMessage(), e);
 	}
@@ -614,13 +625,16 @@ public class SessionManager extends Thread {
 	    throw new AlreadyExistException(message);
 	}
 
+	logger.debug("saving configuration");
 	// save configuration
 	File configFile = saveConfiguration(configProperties, configurationId);
 	// get directory for this configuration created in saveConfiguration()
 	String configDirName = m_configurationDirectoriesPathes
 		.get(configurationId);
 
-	FileIngester ingester = new FileIngester(
+	logger.debug("prepare ingesting configuration");
+	FileIngester ingester = null;
+	ingester = new FileIngester(
 		configProperties
 			.getProperty(Configuration.PROPERTY_INFRASTRUCTURE_ENDPOINT),
 		configProperties
@@ -638,21 +652,31 @@ public class SessionManager extends Thread {
 		+ Constants.CONFIGURATION_FILE_NAME);
 	ingester.setItemContentModel(configProperties
 		.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
+	// FIXME
+	ingester.setContainerContentModel(configProperties
+		.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
 	ingester.setContext(configProperties
 		.getProperty(Configuration.PROPERTY_CONTEXT_ID));
 	ingester.setContentCategory("ORIGINAL");
 	ingester.setInitialLifecycleStatus(PublicStatus.PENDING); // ingester.getLifecycleStatus().get(0));
 	ingester.setMimeType("text/xml"); // ingester.getMimeTypes().get(0));
+	ingester.setValidStatus("valid");
+	ingester.setVisibility("visible");
 
 	try {
+	    logger.debug("ingesting configuration");
+	    ingester.setForceCreate(true);
 	    ingester.ingest();
 	    // FIXME
 	} catch (ConfigurationException e) {
-	    // TODO Auto-generated catch block
-	    e.printStackTrace();
+	    logger.debug("ups", e);
+	    throw new DepositorException(e);
 	} catch (IngestException e) {
-	    // TODO Auto-generated catch block
-	    e.printStackTrace();
+	    logger.debug("ups", e);
+	    throw new DepositorException(e);
+	} catch (Throwable e) {
+	    logger.debug("ups", e);
+
 	}
 
 	synchronized (m_configurations) {
