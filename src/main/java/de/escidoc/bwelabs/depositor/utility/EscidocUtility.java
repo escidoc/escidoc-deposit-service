@@ -265,16 +265,16 @@ public class EscidocUtility {
 		+ path;
 	String technicalMetadataXml = null;
 
-	try {
-	    HttpUtil hu = new HttpUtil();
-	    technicalMetadataXml = hu.getAsString(fitsServiceUrlString);
-
-	} catch (IOException e) {
-	    throw new DepositorException(e);
-	} catch (Exception e) {
-	    // } catch (AuthenticationException e) {
-	    throw new DepositorException(e);
-	}
+	// try {
+	// // HttpUtil hu = new HttpUtil();
+	// // technicalMetadataXml = hu.getAsString(fitsServiceUrlString);
+	//
+	// } catch (IOException e) {
+	// throw new DepositorException(e);
+	// } catch (Exception e) {
+	// // } catch (AuthenticationException e) {
+	// throw new DepositorException(e);
+	// }
 	return technicalMetadataXml;
     }
 
