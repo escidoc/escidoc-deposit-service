@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -32,8 +38,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
 /**
- * Extracts servlet name and url-pattern of a provided servlet class from a
- * web.xml of a web application.
+ * Extracts servlet name and url-pattern of a provided servlet class from a web.xml of a web application.
  * 
  * @author ROF
  * 
@@ -72,9 +77,7 @@ public class WebXmlHandler extends DefaultHandler {
         this.servletClass = servletClass;
     }
 
-    public void startElement(
-        final String uri, final String localName, final String qName,
-        final Attributes attributes) {
+    public void startElement(final String uri, final String localName, final String qName, final Attributes attributes) {
 
         if (inServlet) {
             if (localName.equals("servlet-name")) {
@@ -103,8 +106,7 @@ public class WebXmlHandler extends DefaultHandler {
 
     }
 
-    public void endElement(
-        final String uri, final String localName, final String qName) {
+    public void endElement(final String uri, final String localName, final String qName) {
 
         if (inServlet) {
             if (localName.equals("servlet")) {
@@ -149,8 +151,7 @@ public class WebXmlHandler extends DefaultHandler {
                 this.servletNameServlet = new String(ch, start, length);
             }
             else {
-                this.servletNameServlet =
-                    this.servletNameServlet + new String(ch, start, length);
+                this.servletNameServlet = this.servletNameServlet + new String(ch, start, length);
             }
         }
         if (inServletClass) {
@@ -158,8 +159,7 @@ public class WebXmlHandler extends DefaultHandler {
                 this.servletClassServlet = new String(ch, start, length);
             }
             else {
-                this.servletClassServlet =
-                    this.servletClassServlet + new String(ch, start, length);
+                this.servletClassServlet = this.servletClassServlet + new String(ch, start, length);
             }
         }
         if (inServletNameMapping) {
@@ -167,8 +167,7 @@ public class WebXmlHandler extends DefaultHandler {
                 this.servletNameMapping = new String(ch, start, length);
             }
             else {
-                this.servletNameMapping =
-                    this.servletNameMapping + new String(ch, start, length);
+                this.servletNameMapping = this.servletNameMapping + new String(ch, start, length);
             }
         }
 
@@ -177,8 +176,7 @@ public class WebXmlHandler extends DefaultHandler {
                 this.urlPattern = new String(ch, start, length);
             }
             else {
-                this.urlPattern =
-                    this.urlPattern + new String(ch, start, length);
+                this.urlPattern = this.urlPattern + new String(ch, start, length);
             }
         }
     }

@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -34,9 +40,8 @@ import org.xml.sax.helpers.DefaultHandler;
 import de.escidoc.bwelabs.depositor.service.Constants;
 
 /**
- * Extracts values of attributes 'item@last-modification-date'
- * 'item@xlink:href', 'properties:checksum', 'component@href' from Escidoc-Item
- * REST-representation.
+ * Extracts values of attributes 'item@last-modification-date' 'item@xlink:href', 'properties:checksum',
+ * 'component@href' from Escidoc-Item REST-representation.
  * 
  * @author ROF
  * 
@@ -54,30 +59,23 @@ public class ItemHandler extends DefaultHandler {
 
     private String _componentHref = null;
 
-    public void startElement(
-        String uri, String localName, String qName, Attributes attributes) {
-        if (localName.equals("item")
-            && uri.equals(Constants.ITEM_NAMESPACE_URI)) {
+    public void startElement(String uri, String localName, String qName, Attributes attributes) {
+        if (localName.equals("item") && uri.equals(Constants.ITEM_NAMESPACE_URI)) {
             this._lmd = attributes.getValue("", "last-modification-date");
-            this._itemHref =
-                attributes.getValue(Constants.XLINK_NS_URI, "href");
+            this._itemHref = attributes.getValue(Constants.XLINK_NS_URI, "href");
         }
-        else if (localName.equals("checksum")
-            && uri.equals(Constants.PROPERTIES_NS_URI)) {
+        else if (localName.equals("checksum") && uri.equals(Constants.PROPERTIES_NS_URI)) {
             inCheckSum = true;
         }
-        else if (localName.equals("component")
-            && uri.equals(Constants.COMPONENTS_NAMESPACE_URI)) {
-            this._componentHref =
-                attributes.getValue(Constants.XLINK_NS_URI, "href");
+        else if (localName.equals("component") && uri.equals(Constants.COMPONENTS_NAMESPACE_URI)) {
+            this._componentHref = attributes.getValue(Constants.XLINK_NS_URI, "href");
         }
 
     }
 
     public void endElement(String uri, String localName, String qName) {
 
-        if (localName.equals("checksum")
-            && uri.equals(Constants.PROPERTIES_NS_URI)) {
+        if (localName.equals("checksum") && uri.equals(Constants.PROPERTIES_NS_URI)) {
             inCheckSum = false;
             this._checkSum = this._checkSumForComponent;
             this._checkSumForComponent = null;
@@ -93,8 +91,7 @@ public class ItemHandler extends DefaultHandler {
                 this._checkSumForComponent = new String(ch, start, length);
             }
             else {
-                this._checkSumForComponent =
-                    this._checkSumForComponent + new String(ch, start, length);
+                this._checkSumForComponent = this._checkSumForComponent + new String(ch, start, length);
             }
         }
 

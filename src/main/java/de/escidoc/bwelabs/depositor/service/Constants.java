@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -29,9 +35,9 @@
 package de.escidoc.bwelabs.depositor.service;
 
 public final class Constants {
-    
+
     public static final String CONFIGURATION_FILE_NAME = "configuration.xml";
-    
+
     /**
      * Configuration properties.
      * 
@@ -49,20 +55,15 @@ public final class Constants {
 
     public static final String PROPERTY_USER_EMAIL_ADRESS = "userEmailAdress";
 
-    public static final String PROPERTY_DEPOSIT_SERVER_ENDPOINT =
-        "DepositServerEndpoint";
+    public static final String PROPERTY_DEPOSIT_SERVER_ENDPOINT = "DepositServerEndpoint";
 
-    public static final String PROPERTY_INFRASTRUCTURE_ENDPOINT =
-        "InfrastructureEndpoint";
+    public static final String PROPERTY_INFRASTRUCTURE_ENDPOINT = "InfrastructureEndpoint";
 
-    public static final String PROPERTY_E_SYNC_DEMON_ENDPOINT =
-        "eSyncDemonEndpoint";
+    public static final String PROPERTY_E_SYNC_DEMON_ENDPOINT = "eSyncDemonEndpoint";
 
-    public static final String PROPERTY_MONITORING_START_TIME =
-        "MonitoringStartTime";
+    public static final String PROPERTY_MONITORING_START_TIME = "MonitoringStartTime";
 
-    public static final String PROPERTY_TIME_MONITORING_DURATION =
-        "MonitoringDuration";
+    public static final String PROPERTY_TIME_MONITORING_DURATION = "MonitoringDuration";
 
     public static final String PROPERTY_CHECKSUM_ALGORITHM = "CheckSumType";
 
@@ -92,17 +93,14 @@ public final class Constants {
      * Current schema versions per resource
      */
 
-    public static final String ITEM_NS_URI_SCHEMA_VERSION =
-        NS_URI_SCHEMA_VERSION_0_9;
+    public static final String ITEM_NS_URI_SCHEMA_VERSION = NS_URI_SCHEMA_VERSION_0_9;
 
-    public static final String CONTAINER_NS_URI_SCHEMA_VERSION =
-        NS_URI_SCHEMA_VERSION_0_8;
+    public static final String CONTAINER_NS_URI_SCHEMA_VERSION = NS_URI_SCHEMA_VERSION_0_8;
 
-    public static final String METADATARECORDS_NAMESPACE_URI = NS_URI_PREFIX
-        + "metadatarecords" + NS_URI_SCHEMA_VERSION_0_5;
+    public static final String METADATARECORDS_NAMESPACE_URI = NS_URI_PREFIX + "metadatarecords"
+        + NS_URI_SCHEMA_VERSION_0_5;
 
-    public static final String COMPONENTS_NAMESPACE_URI = NS_URI_PREFIX
-        + "components" + NS_URI_SCHEMA_VERSION_0_9;
+    public static final String COMPONENTS_NAMESPACE_URI = NS_URI_PREFIX + "components" + NS_URI_SCHEMA_VERSION_0_9;
 
     /*
      * END Current schema versions per resource
@@ -114,25 +112,19 @@ public final class Constants {
      * 
      */
 
-    public static final String PROPERTIES_NS_URI =
-        "http://escidoc.de/core/01/properties/";
+    public static final String PROPERTIES_NS_URI = "http://escidoc.de/core/01/properties/";
 
-    public static final String STRUCTURAL_RELATIONS_NS_URI =
-        "http://escidoc.de/core/01/structural-relations/";
+    public static final String STRUCTURAL_RELATIONS_NS_URI = "http://escidoc.de/core/01/structural-relations/";
 
     public static final String XLINK_NS_URI = "http://www.w3.org/1999/xlink";
 
-    public static final String XML_NS_URI =
-        "http://www.w3.org/XML/1998/namespace";
+    public static final String XML_NS_URI = "http://www.w3.org/XML/1998/namespace";
 
-    public static final String ITEM_NAMESPACE_URI = NS_URI_PREFIX + "item"
-        + ITEM_NS_URI_SCHEMA_VERSION;
+    public static final String ITEM_NAMESPACE_URI = NS_URI_PREFIX + "item" + ITEM_NS_URI_SCHEMA_VERSION;
 
-    public static final String CONTAINER_NAMESPACE_URI = NS_URI_PREFIX
-        + "container" + CONTAINER_NS_URI_SCHEMA_VERSION;
+    public static final String CONTAINER_NAMESPACE_URI = NS_URI_PREFIX + "container" + CONTAINER_NS_URI_SCHEMA_VERSION;
 
-    public static final String ITEM_PROPERTIES_NAMESPACE_URI =
-        ITEM_NAMESPACE_URI;
+    public static final String ITEM_PROPERTIES_NAMESPACE_URI = ITEM_NAMESPACE_URI;
 
     public static final String XLINK_URI = XLINK_NS_URI;
 

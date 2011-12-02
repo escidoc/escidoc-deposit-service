@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -47,113 +53,112 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Handles HTTP-GET requests and provides content files, stored in a base
- * directory of the Depositor-service.
+ * Handles HTTP-GET requests and provides content files, stored in a base directory of the Depositor-service.
  * 
  * @author ROF
  * 
  */
 public class ContentFileServlet extends HttpServlet {
 
-	private static final long serialVersionUID = 7215459741116033831L;
+    private static final long serialVersionUID = 7215459741116033831L;
 
-	/**
-	 * Buffer size for copying binary content into output stream.
-	 */
-	private static final int BUFFER_SIZE = 0xFFFF;
+    /**
+     * Buffer size for copying binary content into output stream.
+     */
+    private static final int BUFFER_SIZE = 0xFFFF;
 
-	public static final String PROP_BASEDIR = "depositor.sessionBaseDir";
+    public static final String PROP_BASEDIR = "depositor.sessionBaseDir";
 
-	private String _baseUrl;
+    private String _baseUrl;
 
-	public static final String HTTP_GET = "GET";
+    public static final String HTTP_GET = "GET";
 
-	private static final Logger logger = LoggerFactory
-			.getLogger(ContentFileServlet.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ContentFileServlet.class.getName());
 
-	/**
-	 * Method returns content files, stored in a base-directory of a Depositor
-	 * service.
-	 */
-	@Override
-	public void doGet(HttpServletRequest request, HttpServletResponse response) {
-		try {
-			// extract relative path to content file from request ...
-			String pathInfo = request.getPathInfo();
-			// ... and access requested content file
-			File contentFile = new File(_baseUrl + pathInfo);
+    /**
+     * Method returns content files, stored in a base-directory of a Depositor service.
+     */
+    @Override
+    public void doGet(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // extract relative path to content file from request ...
+            String pathInfo = request.getPathInfo();
+            // ... and access requested content file
+            File contentFile = new File(_baseUrl + pathInfo);
 
-			// return content file content
-			FileInputStream input = new FileInputStream(contentFile);
-			final ServletOutputStream out = response.getOutputStream();
-			copyStreams(input, out);
-			out.flush();
-			out.close();
-			input.close();
-			response.setStatus(HttpServletResponse.SC_OK);
-		} catch (FileNotFoundException e) {
-			try {
-				response.sendError(HttpServletResponse.SC_NOT_FOUND);
-			} catch (IOException ioe) {
-				logger.warn("Could not send error", ioe);
-			}
+            // return content file content
+            FileInputStream input = new FileInputStream(contentFile);
+            final ServletOutputStream out = response.getOutputStream();
+            copyStreams(input, out);
+            out.flush();
+            out.close();
+            input.close();
+            response.setStatus(HttpServletResponse.SC_OK);
+        }
+        catch (FileNotFoundException e) {
+            try {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            }
+            catch (IOException ioe) {
+                logger.warn("Could not send error", ioe);
+            }
 
-		} catch (IOException e) {
-			logger.error(e.getMessage());
-			try {
-				response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			} catch (IOException ioe) {
-				logger.warn("Could not send error", ioe);
-			}
-		}
-	}
+        }
+        catch (IOException e) {
+            logger.error(e.getMessage());
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+            catch (IOException ioe) {
+                logger.warn("Could not send error", ioe);
+            }
+        }
+    }
 
-	@Override
-	public void init() throws ServletException {
-		try {
-			// load configuration from properties file
-			InputStream propStream = this.getClass().getResourceAsStream(
-					"/depositor.properties");
-			if (propStream == null) {
-				throw new IOException(
-						"Error loading configuration: /depositor.properties not found in classpath");
-			}
-			Properties props = new Properties();
-			props.load(propStream);
+    @Override
+    public void init() throws ServletException {
+        try {
+            // load configuration from properties file
+            InputStream propStream = this.getClass().getResourceAsStream("/depositor.properties");
+            if (propStream == null) {
+                throw new IOException("Error loading configuration: /depositor.properties not found in classpath");
+            }
+            Properties props = new Properties();
+            props.load(propStream);
 
-			// set base directory
-			String dir = props.getProperty(PROP_BASEDIR);
-			if (dir == null) {
-				throw new ServerException("Required property missing: "
-						+ PROP_BASEDIR);
-			} else {
-				_baseUrl = dir;
-			}
+            // set base directory
+            String dir = props.getProperty(PROP_BASEDIR);
+            if (dir == null) {
+                throw new ServerException("Required property missing: " + PROP_BASEDIR);
+            }
+            else {
+                _baseUrl = dir;
+            }
 
-		} catch (Exception e) {
-			String message = "Unable to initialize DepositorServlet";
-			logger.error(message);
-			throw new ServletException(message, e);
-		}
-	}
+        }
+        catch (Exception e) {
+            String message = "Unable to initialize DepositorServlet";
+            logger.error(message);
+            throw new ServletException(message, e);
+        }
+    }
 
-	/**
-	 * Copy InputStream to OutputStream.
-	 * 
-	 * @param ins
-	 *            InputStream
-	 * @param out
-	 *            OutputStream
-	 * @throws IOException
-	 *             Thrown if copy failed.
-	 */
-	private void copyStreams(final InputStream ins, final OutputStream out)
-			throws IOException {
+    /**
+     * Copy InputStream to OutputStream.
+     * 
+     * @param ins
+     *            InputStream
+     * @param out
+     *            OutputStream
+     * @throws IOException
+     *             Thrown if copy failed.
+     */
+    private void copyStreams(final InputStream ins, final OutputStream out) throws IOException {
 
-		final byte[] buffer = new byte[BUFFER_SIZE];
-		int length = 0;
-		while ((length = ins.read(buffer)) != -1) {
-			out.write(buffer, 0, length);
-		}
-	}
+        final byte[] buffer = new byte[BUFFER_SIZE];
+        int length = 0;
+        while ((length = ins.read(buffer)) != -1) {
+            out.write(buffer, 0, length);
+        }
+    }
 }

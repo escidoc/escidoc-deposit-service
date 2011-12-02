@@ -43,8 +43,7 @@ import de.escidoc.bwelabs.depositor.service.Constants;
 
 public class Configuration extends Properties {
 
-    private static final Logger LOG = LoggerFactory
-	    .getLogger(Configuration.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
     public static final String PROPERTY_CONFIGURATION_ID = "ConfigurationID";
 
@@ -72,110 +71,105 @@ public class Configuration extends Properties {
 
     private boolean isValid;
 
-    public boolean isValid() throws MissingConfigurationPropertyException,
-	    MalformedURLException, NoSuchAlgorithmException {
-	// be optimistic
-	this.isValid = true;
+    public boolean isValid() throws MissingConfigurationPropertyException, MalformedURLException,
+        NoSuchAlgorithmException {
+        // be optimistic
+        this.isValid = true;
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_CONFIGURATION_ID))) {
-	    String message = Constants.PROPERTY_CONFIGURATION_ID
-		    + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_CONFIGURATION_ID))) {
+            String message = Constants.PROPERTY_CONFIGURATION_ID + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_EXPERIMENT_ID))) {
-	    String message = Constants.PROPERTY_EXPERIMENT_ID + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_EXPERIMENT_ID))) {
+            String message = Constants.PROPERTY_EXPERIMENT_ID + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT))) {
-	    String message = Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT
-		    + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	} else {
-	    new URL(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT));
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT))) {
+            String message = Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
+        else {
+            new URL(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT));
+        }
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_USER_HANDLE))) {
-	    String message = Constants.PROPERTY_USER_HANDLE + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_USER_HANDLE))) {
+            String message = Constants.PROPERTY_USER_HANDLE + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_CONTEXT_ID))) {
-	    String message = Constants.PROPERTY_CONTEXT_ID + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_CONTEXT_ID))) {
+            String message = Constants.PROPERTY_CONTEXT_ID + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_CONTENT_MODEL_ID))) {
-	    String message = Constants.PROPERTY_CONTENT_MODEL_ID
-		    + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_CONTENT_MODEL_ID))) {
+            String message = Constants.PROPERTY_CONTENT_MODEL_ID + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
 
-	// PROPERTY_MONITORING_START_TIME is optional
-	if (!isNullOrEmpty(this.getProperty(PROPERTY_MONITORING_START_TIME))) {
-	    // String message = Constants.PROPERTY_MONITORING_START_TIME
-	    // + " is missing.";
-	    // LOG.error(message);
-	    // this.isValid = false;
-	    // } else {
-	    // try {
-	    new DateTime(this.getProperty(PROPERTY_MONITORING_START_TIME));
-	    // } catch (IllegalArgumentException e) {
-	    // String message = "The value '" + monitoringStartTime
-	    // + "' of the property "
-	    // + Constants.PROPERTY_MONITORING_START_TIME
-	    // + " has a wrong format. ";
-	    // LOG.error(message);
-	    // this.isValid = false
-	    // }
-	}
+        // PROPERTY_MONITORING_START_TIME is optional
+        if (!isNullOrEmpty(this.getProperty(PROPERTY_MONITORING_START_TIME))) {
+            // String message = Constants.PROPERTY_MONITORING_START_TIME
+            // + " is missing.";
+            // LOG.error(message);
+            // this.isValid = false;
+            // } else {
+            // try {
+            new DateTime(this.getProperty(PROPERTY_MONITORING_START_TIME));
+            // } catch (IllegalArgumentException e) {
+            // String message = "The value '" + monitoringStartTime
+            // + "' of the property "
+            // + Constants.PROPERTY_MONITORING_START_TIME
+            // + " has a wrong format. ";
+            // LOG.error(message);
+            // this.isValid = false
+            // }
+        }
 
-	// PROPERTY_TIME_MONITORING_DURATION is optional
-	// FIXME is it?
-	if (!isNullOrEmpty(this.getProperty(PROPERTY_TIME_MONITORING_DURATION))) {
-	    Integer.parseInt(this
-		    .getProperty(PROPERTY_TIME_MONITORING_DURATION));
-	    // if (isMonitoringTimeOver(configProperties)) {
-	    // String message = "The configuration is expired. ";
-	    // logger.error(message);
-	    // throw new WrongConfigurationContentException(message);
-	    // }
-	}
+        // PROPERTY_TIME_MONITORING_DURATION is optional
+        // FIXME is it?
+        if (!isNullOrEmpty(this.getProperty(PROPERTY_TIME_MONITORING_DURATION))) {
+            Integer.parseInt(this.getProperty(PROPERTY_TIME_MONITORING_DURATION));
+            // if (isMonitoringTimeOver(configProperties)) {
+            // String message = "The configuration is expired. ";
+            // logger.error(message);
+            // throw new WrongConfigurationContentException(message);
+            // }
+        }
 
-	if (isNullOrEmpty(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM))) {
-	    String message = Constants.PROPERTY_CHECKSUM_ALGORITHM
-		    + " is missing.";
-	    LOG.error(message);
-	    this.isValid = false;
-	} else {
-	    MessageDigest.getInstance(this
-		    .getProperty(PROPERTY_CHECKSUM_ALGORITHM));
-	}
+        if (isNullOrEmpty(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM))) {
+            String message = Constants.PROPERTY_CHECKSUM_ALGORITHM + " is missing.";
+            LOG.error(message);
+            this.isValid = false;
+        }
+        else {
+            MessageDigest.getInstance(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM));
+        }
 
-	if (!this.isValid) {
-	    throw new MissingConfigurationPropertyException(
-		    "Some properties are missing in the configuration.");
-	}
+        if (!this.isValid) {
+            throw new MissingConfigurationPropertyException("Some properties are missing in the configuration.");
+        }
 
-	return true;
+        return true;
     }
 
     private boolean isNullOrEmpty(Object o) {
-	if (o != null) {
-	    if (o instanceof String) {
-		String s = (String) o;
-		return s.isEmpty();
-	    }
-	    return false;
-	}
-	return true;
+        if (o != null) {
+            if (o instanceof String) {
+                String s = (String) o;
+                return s.isEmpty();
+            }
+            return false;
+        }
+        return true;
     }
 
 }

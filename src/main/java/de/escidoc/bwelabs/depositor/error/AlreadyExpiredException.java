@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -29,17 +35,16 @@
 package de.escidoc.bwelabs.depositor.error;
 
 /**
- * The AlreadyExpiredException is used to indicate that the object cannot be
- *updated because it already expired.
+ * The AlreadyExpiredException is used to indicate that the object cannot be updated because it already expired.
  * 
  * @author ROF
  * 
  */
 public class AlreadyExpiredException extends ApplicationException {
     /**
-     *  The serial version uid.
+     * The serial version uid.
      */
-    
+
     private static final long serialVersionUID = -5560295075755400216L;
 
     public AlreadyExpiredException(String message) {

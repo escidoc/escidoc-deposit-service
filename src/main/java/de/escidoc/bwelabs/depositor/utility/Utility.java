@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -27,10 +33,12 @@
  * All rights reserved.  Use is subject to license terms.
  */
 package de.escidoc.bwelabs.depositor.utility;
+
 /**
  * Utility class.
+ * 
  * @author ROF
- *
+ * 
  */
 public class Utility {
     public static String byteArraytoHexString(byte[] array) {
@@ -39,16 +47,14 @@ public class Utility {
         for (byte val : array) {
             int v1 = val >>> 4 & 0x0f;
             int v2 = val & 0x0f;
-            buf.append(hexByte.substring(v1, v1 + 1)).append(hexByte
-                    .substring(v2, v2 + 1));
+            buf.append(hexByte.substring(v1, v1 + 1)).append(hexByte.substring(v2, v2 + 1));
         }
         return buf.toString();
 
-
     }
+
     /**
-     * Fetches the id from the link. It is the String after the last '/' in the
-     * link.
+     * Fetches the id from the link. It is the String after the last '/' in the link.
      * 
      * @param link
      *            The link

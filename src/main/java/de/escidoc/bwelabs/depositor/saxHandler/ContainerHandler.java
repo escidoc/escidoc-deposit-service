@@ -1,4 +1,4 @@
-/*
+/**
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -7,7 +7,7 @@
  * with the License.
  *
  * You can obtain a copy of the license at license/ESCIDOC.LICENSE
- * or http://www.escidoc.de/license.
+ * or https://www.escidoc.org/license/ESCIDOC.LICENSE .
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -18,8 +18,14 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ *
+ *
+ * Copyright 2011 Fachinformationszentrum Karlsruhe Gesellschaft
+ * fuer wissenschaftlich-technische Information mbH and Max-Planck-
+ * Gesellschaft zur Foerderung der Wissenschaft e.V.
+ * All rights reserved.  Use is subject to license terms.
  */
-
 /*
  * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
  * fuer wissenschaftlich-technische Information mbH and Max-Planck-
@@ -34,8 +40,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import de.escidoc.bwelabs.depositor.service.Constants;
 
 /**
- * Extracts values of attributes 'properties@last-modification-date' from
- * Escidoc-Container REST-representation.
+ * Extracts values of attributes 'properties@last-modification-date' from Escidoc-Container REST-representation.
  * 
  * @author ROF
  * 
@@ -44,10 +49,8 @@ public class ContainerHandler extends DefaultHandler {
 
     private String _lmd = null;
 
-    public void startElement(
-        String uri, String localName, String qName, Attributes attributes) {
-        if (localName.equals("properties")
-            && uri.equals(Constants.PROPERTIES_NS_URI)) {
+    public void startElement(String uri, String localName, String qName, Attributes attributes) {
+        if (localName.equals("properties") && uri.equals(Constants.PROPERTIES_NS_URI)) {
             this._lmd = attributes.getValue("", "last-modification-date");
         }
 
