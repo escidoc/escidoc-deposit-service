@@ -34,6 +34,9 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -43,9 +46,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.SAXParserFactory;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import de.escidoc.bwelabs.depositor.error.AlreadyExistException;
 import de.escidoc.bwelabs.depositor.error.AlreadyExpiredException;
@@ -104,7 +104,6 @@ public class DepositorServlet extends HttpServlet {
     @Override
     public void doPut(final HttpServletRequest request, final HttpServletResponse response) {
         LOGGER.debug("PUT");
-        System.out.println("PUT");
         String pathInfo = request.getPathInfo();
 
         InputStream is = null;

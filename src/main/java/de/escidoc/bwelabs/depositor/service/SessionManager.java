@@ -34,6 +34,16 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
+import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
+import org.escidoc.core.client.ingest.exceptions.IngestException;
+import org.escidoc.core.client.ingest.filesystem.FileIngester;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -50,16 +60,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
-
-import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
-import org.escidoc.core.client.ingest.exceptions.IngestException;
-import org.escidoc.core.client.ingest.filesystem.FileIngester;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.AlreadyExistException;
@@ -526,7 +526,6 @@ public class SessionManager extends Thread {
 
         logger.debug("Checking configuration");
         checkConfiguration(configurationStream);
-
     }
 
     /**
