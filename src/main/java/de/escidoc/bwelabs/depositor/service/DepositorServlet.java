@@ -63,6 +63,10 @@ import de.escidoc.bwelabs.depositor.error.WrongFormatException;
  */
 public class DepositorServlet extends HttpServlet {
 
+    private static final String CONTENT_DISPOSITION = "Content-Disposition";
+
+    private static final String ESCIDOC_CHECKSUM_HEADER = "X-ESciDoc-CheckSum";
+
     private static final long serialVersionUID = -2846807557758308527L;
 
     public static final String PATH_FOR_SENDING_NEW_CONFIGURATION = "/configuration";
@@ -106,20 +110,7 @@ public class DepositorServlet extends HttpServlet {
         LOGGER.debug("PUT");
         String pathInfo = request.getPathInfo();
 
-        InputStream is = null;
-        try {
-            is = request.getInputStream();
-        }
-        catch (IOException e) {
-            String message = "Error reading input stream from request";
-            LOGGER.error(message + e.getMessage());
-            try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message + e.getMessage());
-            }
-            catch (IOException ioe) {
-                LOGGER.warn("Could not send error to eSyncDemon", ioe);
-            }
-        }
+        InputStream is = readInputStream(request, response);
 
         LOGGER.debug("pathInfo: " + pathInfo);
         System.out.println(pathInfo);
@@ -161,12 +152,7 @@ public class DepositorServlet extends HttpServlet {
                     }
                 }
                 catch (DepositorException e) {
-                    try {
-                        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
+                    sendDepositError(response, e);
                 }
                 catch (InfrastructureException e) {
                     try {
@@ -194,13 +180,7 @@ public class DepositorServlet extends HttpServlet {
                     }
                 }
                 finally {
-                    manager.decreaseThreadsNumber();
-                    try {
-                        is.close();
-                    }
-                    catch (IOException e) {
-                        LOGGER.warn("Error closing input stream", e);
-                    }
+                    cleanUp(is);
                 }
             }
 
@@ -222,12 +202,40 @@ public class DepositorServlet extends HttpServlet {
      */
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) {
+
+        // FIXME Preconditions are:
+        // http://{host:port}/deposit-service/depositor/{configId}
+        // configId can not be null or empty
+        // TODO
+        // String configId = request.getPathInfo().substring(1);
+
+        // String checkSumValue = request.getHeader(ESCIDOC_CHECKSUM_HEADER);
+        // String fileName = request.getHeader(CONTENT_DISPOSITION);
+
         LOGGER.debug("POST");
-        String pathInfo = request.getPathInfo();
-        String configId = pathInfo.substring(1);
-        InputStream is = null;
+        InputStream is = readInputStream(request, response);
+        if (is == null) {
+            sendError(response);
+        }
+        else {
+            checkSum(request, response, is);
+        }
+    }
+
+    private static void sendError(HttpServletResponse response) {
+        String message = "A stream with the content file is null";
+        LOGGER.error(message);
         try {
-            is = request.getInputStream();
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);
+        }
+        catch (IOException ioe) {
+            LOGGER.warn("Could not send error to eSyncDemon", ioe);
+        }
+    }
+
+    private static InputStream readInputStream(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            return request.getInputStream();
         }
         catch (IOException e) {
             String message = "Error reading input stream from request";
@@ -239,85 +247,102 @@ public class DepositorServlet extends HttpServlet {
                 LOGGER.warn("Could not send error to eSyncDemon", ioe);
             }
         }
+        return null;
+    }
 
-        if (is == null) {
+    private void checkSum(HttpServletRequest request, HttpServletResponse response, InputStream is) {
+        try {
+            String checkSumValue = request.getHeader(ESCIDOC_CHECKSUM_HEADER);
+            String fileName = request.getHeader(CONTENT_DISPOSITION);
+            String configId = request.getPathInfo().substring(1);
 
-            String message = "A stream with the content file is null";
-            LOGGER.error(message);
+            // FIXME check for empty value OR null and react accordingly
+            // TODO what does this line do?
+            manager.increaseThreadsNumber();
+
+            if (isValid(is, checkSumValue, fileName, configId)) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.setContentType("text/xml");
+                response.flushBuffer();
+            }
+            else {
+                sendInvalidChecksum(response);
+            }
+        }
+        catch (ApplicationException e) {
+            handleApplicationException(response, e);
+        }
+        catch (DepositorException e) {
+            sendDepositError(response, e);
+        }
+        catch (Throwable e) {
+            sendOtherError(response, e);
+        }
+        finally {
+            cleanUp(is);
+        }
+    }
+
+    private void cleanUp(InputStream is) {
+        manager.decreaseThreadsNumber();
+        try {
+            is.close();
+        }
+        catch (IOException e) {
+            LOGGER.warn("Error closing input stream", e);
+        }
+    }
+
+    private static void sendOtherError(HttpServletResponse response, Throwable e) {
+        try {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        catch (IOException ioe) {
+            LOGGER.warn("Could not send error to eSyncDemon", ioe);
+        }
+    }
+
+    private static void sendDepositError(HttpServletResponse response, DepositorException e) {
+        try {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        catch (IOException ioe) {
+            LOGGER.warn("Could not send error to eSyncDemon", ioe);
+        }
+    }
+
+    private static void handleApplicationException(HttpServletResponse response, ApplicationException e) {
+        if ((e instanceof AlreadyExistException) || (e instanceof AlreadyExpiredException)) {
             try {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);
+                response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
             }
             catch (IOException ioe) {
                 LOGGER.warn("Could not send error to eSyncDemon", ioe);
             }
         }
         else {
-
             try {
-                String checkSumValue = request.getHeader("X-ESciDoc-CheckSum");
-                String fileName = request.getHeader("Content-Disposition");
-                manager.increaseThreadsNumber();
-
-                if (manager.checkCheckSum(configId, checkSumValue, is, fileName)) {
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setContentType("text/xml");
-                    response.flushBuffer();
-                }
-                else {
-                    try {
-                        response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED,
-                            "A calculated check sum of the attached file " + "does not match the provided check sum.");
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
-                }
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
             }
-            catch (ApplicationException e) {
-                if ((e instanceof AlreadyExistException) || (e instanceof AlreadyExpiredException)) {
-                    try {
-                        response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
-                }
-                else {
-                    try {
-                        response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
-                }
-            }
-            catch (DepositorException e) {
-                try {
-                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-                }
-                catch (IOException ioe) {
-                    LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                }
-            }
-            catch (Throwable e) {
-                try {
-                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-                }
-                catch (IOException ioe) {
-                    LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                }
-            }
-            finally {
-                manager.decreaseThreadsNumber();
-                try {
-                    is.close();
-                }
-                catch (IOException e) {
-                    LOGGER.warn("Error closing input stream", e);
-                }
+            catch (IOException ioe) {
+                LOGGER.warn("Could not send error to eSyncDemon", ioe);
             }
         }
+    }
 
+    private static void sendInvalidChecksum(HttpServletResponse response) {
+        try {
+            response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED,
+                "A calculated check sum of the attached file " + "does not match the provided check sum.");
+        }
+        catch (IOException ioe) {
+            LOGGER.warn("Could not send error to eSyncDemon", ioe);
+        }
+    }
+
+    private boolean isValid(InputStream is, String checkSumValue, String fileName, String configId)
+        throws ApplicationException, DepositorException {
+        return manager.refactorNameOfThisMethod(configId, checkSumValue, is, fileName);
     }
 
     /**
@@ -347,21 +372,11 @@ public class DepositorServlet extends HttpServlet {
 
         }
         catch (DepositorException e) {
-            try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-            }
-            catch (IOException ioe) {
-                LOGGER.warn("Could not send error to eSyncDemon", ioe);
-            }
+            sendDepositError(response, e);
 
         }
         catch (Throwable e) {
-            try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-            }
-            catch (IOException ioe) {
-                LOGGER.warn("Could not send error to eSyncDemon", ioe);
-            }
+            sendOtherError(response, e);
         }
         finally {
             manager.decreaseThreadsNumber();
@@ -430,7 +445,7 @@ public class DepositorServlet extends HttpServlet {
      * @return string with a
      * @throws DepositorException
      */
-    private String getContentFileServletPath() throws DepositorException {
+    private static String getContentFileServletPath() throws DepositorException {
         // FIXME this method should determine url pattern of ContentServlet.
         // needs proxy settings for accessing web.xml doctype dtd.
 
@@ -507,9 +522,6 @@ public class DepositorServlet extends HttpServlet {
      */
     @Override
     public void destroy() {
-
         this.manager.close();
-
     }
-
 }

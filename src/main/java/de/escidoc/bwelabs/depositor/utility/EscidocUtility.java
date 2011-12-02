@@ -67,9 +67,7 @@ public class EscidocUtility {
         if (dir == null) {
             throw new DepositorException("Required property missing: " + ContentFileServlet.PROP_BASEDIR);
         }
-        else {
-            baseDir = dir;
-        }
+        baseDir = dir;
     }
 
     /**
@@ -232,7 +230,6 @@ public class EscidocUtility {
         // FIXME path is system dependent
         String path = pathToContentFile;
         // path = path.replaceAll("/", "\\\\");
-        String fitsServiceUrlString = "http://localhost:8080/TME/examine?path=" + path;
         String technicalMetadataXml = null;
 
         // try {

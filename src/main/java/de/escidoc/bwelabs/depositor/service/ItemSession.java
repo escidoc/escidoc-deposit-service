@@ -34,6 +34,13 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
+import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
+import org.escidoc.core.client.ingest.exceptions.IngestException;
+import org.escidoc.core.client.ingest.filesystem.FileIngester;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -46,13 +53,6 @@ import java.util.Properties;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-
-import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
-import org.escidoc.core.client.ingest.exceptions.IngestException;
-import org.escidoc.core.client.ingest.filesystem.FileIngester;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
@@ -128,29 +128,27 @@ public class ItemSession extends Thread {
                 // _LOG.error(message);
                 throw new DepositorException(message);
             }
-            if (is != null) {
-                byte buffer[] = new byte[5000];
-                int numread;
+            byte buffer[] = new byte[5000];
+            int numread;
 
-                try {
-                    while ((numread = is.read(buffer, 0, 5000)) > 0) {
-                        md.update(buffer, 0, numread);
-                    }
-                    is.close();
+            try {
+                while ((numread = is.read(buffer, 0, 5000)) > 0) {
+                    md.update(buffer, 0, numread);
                 }
-                catch (IOException e) {
-                    String message =
-                        "Error on restoring configurations from last run: "
-                            + "unexpected exception while calculating a check sum for a content file "
-                            + contentFile.getName() + " of the configuration with id "
-                            + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID) + e.getMessage();
-                    // _LOG.error(message);
-                    throw new DepositorException(message);
-                }
-
-                byte[] digest = md.digest();
-                _providedCheckSum = Utility.byteArraytoHexString(digest);
+                is.close();
             }
+            catch (IOException e) {
+                String message =
+                    "Error on restoring configurations from last run: "
+                        + "unexpected exception while calculating a check sum for a content file "
+                        + contentFile.getName() + " of the configuration with id "
+                        + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID) + e.getMessage();
+                // _LOG.error(message);
+                throw new DepositorException(message);
+            }
+
+            byte[] digest = md.digest();
+            _providedCheckSum = Utility.byteArraytoHexString(digest);
         }
         else {
             _providedCheckSum = providedCheckSum;
@@ -229,6 +227,8 @@ public class ItemSession extends Thread {
         FileIngester ingester = new FileIngester(escidocBaseUrl, handle, containerId);
 
         ingester.addFile(_pathToContentFile);
+        // FIXME: container content model is not needed here.
+        ingester.setContainerContentModel(_configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         ingester.setItemContentModel(_configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         ingester.setContext(_configuration.getProperty(Configuration.PROPERTY_CONTEXT_ID));
         ingester.setContentCategory("ORIGINAL");

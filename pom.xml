@@ -12,7 +12,6 @@
 	<properties>
 		<compiler.level>1.6</compiler.level>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<jetty.version></jetty.version>
 	</properties>
 
 	<dependencies>
@@ -132,7 +131,7 @@
 				<configuration>
 					<stopPort>9986</stopPort>
 					<stopKey>depositor</stopKey>
-					<scanIntervalSeconds>${jetty.scan.sec}</scanIntervalSeconds>
+					<scanIntervalSeconds>0</scanIntervalSeconds>
 				</configuration>
 			</plugin>
 

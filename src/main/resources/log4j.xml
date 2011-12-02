@@ -9,7 +9,7 @@
 		<layout class="org.apache.log4j.PatternLayout">
 			<param
 				name="ConversionPattern"
-				value="%p %d{yyyy-MM-dd' 'HH:mm:ss.SSS} [%t] (%c{1}) %m%n" />
+				value="%-5p: %m at %C.(%F:%L) on %d{ISO8601}%n" />
 		</layout>
 	</appender>
 
@@ -46,17 +46,17 @@
 				value="%p %d{yyyy-MM-dd' 'HH:mm:ss.SSS} [%t] (%c{1}) %m%n" />
 		</layout>
 	</appender>
-	
+
 	<logger name="org.apache">
 		<level value="warn" />
 		<appender-ref ref="Console" />
 	</logger>
-	
+
 	<logger name="httpclient.wire">
 		<level value="warn" />
 		<appender-ref ref="Console" />
 	</logger>
-	
+
 	<root>
 		<priority value="DEBUG" />
 		<appender-ref ref="Console" />

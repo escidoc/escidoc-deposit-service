@@ -34,6 +34,9 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -48,9 +51,6 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Handles HTTP-GET requests and provides content files, stored in a base directory of the Depositor-service.
@@ -131,9 +131,7 @@ public class ContentFileServlet extends HttpServlet {
             if (dir == null) {
                 throw new ServerException("Required property missing: " + PROP_BASEDIR);
             }
-            else {
-                _baseUrl = dir;
-            }
+            _baseUrl = dir;
 
         }
         catch (Exception e) {
@@ -153,7 +151,7 @@ public class ContentFileServlet extends HttpServlet {
      * @throws IOException
      *             Thrown if copy failed.
      */
-    private void copyStreams(final InputStream ins, final OutputStream out) throws IOException {
+    private static void copyStreams(final InputStream ins, final OutputStream out) throws IOException {
 
         final byte[] buffer = new byte[BUFFER_SIZE];
         int length = 0;

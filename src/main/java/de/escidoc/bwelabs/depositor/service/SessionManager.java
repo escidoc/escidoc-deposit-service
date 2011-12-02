@@ -461,7 +461,7 @@ public class SessionManager extends Thread {
      * @param configuration
      * @return
      */
-    private boolean isMonitoringTimeOver(Properties configuration) {
+    private static boolean isMonitoringTimeOver(Properties configuration) {
         String monitoringStartTime = configuration.getProperty(Constants.PROPERTY_MONITORING_START_TIME);
         if (monitoringStartTime == null) {
             return false;
@@ -474,12 +474,7 @@ public class SessionManager extends Thread {
         int monitoringDurationMinutes = Integer.parseInt(monitoringDuration);
         DateTime endTime = startTime.plusMinutes(monitoringDurationMinutes);
 
-        if (endTime.isBeforeNow()) {
-            return true;
-        }
-        else {
-            return false;
-        }
+        return endTime.isBeforeNow();
     }
 
     // ////////////////////////////////////////////////////////////////////////
@@ -765,49 +760,98 @@ public class SessionManager extends Thread {
      * @throws ApplicationException
      * @throws DepositorException
      */
-    public boolean checkCheckSum(
+    public boolean refactorNameOfThisMethod(
         final String configId, final String checkSumValue, final InputStream in, final String fileName)
         throws ApplicationException, DepositorException {
-        if (m_threadNumber == m_maxThreadNumber) {
-            logger.error(ERR_MAX_THREADS_);
-            throw new DepositorException(ERR_MAX_THREADS_);
-        }
 
-        if (m_expiredSuccessfulConfigurations.containsKey(configId)
-            || m_expiredConfigurationsSinceLastRun.contains(configId) || m_isCleaning.contains(configId)) {
-            String message = "A session for the configuration with " + configId + " is expired.";
-            logger.error(message);
-            throw new AlreadyExpiredException(message);
-        }
-        if (m_failedExpired_configurationDirectories.containsKey(configId)) {
-            String message =
-                "A configuration with id  "
-                    + configId
-                    + " is expiered and failed due to an internal failure on a deposit service or on an infrastructure.";
-            logger.error(message);
-            throw new DepositorException(message);
-        }
-        if (m_failedConfigurations.containsKey(configId)) {
-            String message =
-                "Error on Depositor: can not temporary accept content files for the configuration with the id "
-                    + configId + " due to an internal failure on a deposit service or on an infrastructure.";
-            logger.error(message);
-            throw new DepositorException(message);
-        }
-        if (!m_configurations.containsKey(configId)) {
-            String message = "Can not find a configuration with the id " + configId + ".";
-            logger.error(message);
-            throw new ApplicationException(message);
-        }
+        checkPreconditions(configId);
         File configurationDirectory = new File(m_baseDir, m_configurationDirectoriesPathes.get(configId));
+        checkIfExists(configId, configurationDirectory);
+        checkFileName(configId, fileName, configurationDirectory);
+        putMonitoringStartTimeIntoConfigurationIfMissing(configId);
+        return compareChecksum(configId, checkSumValue, configurationDirectory, new File(configurationDirectory,
+            fileName), storeFileAndCalculateChecksum(configId, in, new File(configurationDirectory, fileName)));
+    }
+
+    private static void checkIfExists(final String configId, File configurationDirectory) throws DepositorException {
         if (!configurationDirectory.exists()) {
             String message =
                 "Error on Depositor: can not found a directory for the configuration with the id " + configId + ".";
             logger.error(message);
             throw new DepositorException(message);
         }
+    }
 
-        // check if filename is already sent for this configuration
+    private MessageDigest storeFileAndCalculateChecksum(final String configId, final InputStream in, File contentFile)
+        throws DepositorException {
+        // store stream content in file named with filename while computing the
+        // message digest
+        FileOutputStream os = null;
+        try {
+            os = new FileOutputStream(contentFile);
+        }
+        catch (FileNotFoundException e) {
+            logger.error(e.getMessage());
+            throw new DepositorException(e.getMessage());
+        }
+        MessageDigest md = getMessageDigest(configId);
+        DigestInputStream din = new DigestInputStream(in, md);
+        byte[] buf = new byte[5000];
+        int len;
+        try {
+            while ((len = din.read(buf)) > 0) {
+                os.write(buf, 0, len);
+            }
+            os.close();
+            din.close();
+        }
+        catch (IOException e) {
+            logger.error(e.getMessage());
+            throw new DepositorException(e.getMessage());
+        }
+        return md;
+    }
+
+    private boolean compareChecksum(
+        final String configId, final String checkSumValue, File configurationDirectory, File contentFile,
+        MessageDigest md) throws DepositorException {
+
+        // compare computed digest with the one send with the request
+        byte[] digest = md.digest();
+        String checksum = Utility.byteArraytoHexString(digest);
+        logger.debug("checksum[" + checksum + "]");
+
+        // now, content from the request is stored and validated.
+        // create a session and start it. The session computed all additional
+        // information and stores the content as component content in an item in
+        // the eSciDoc Infrastructure.
+        if (checksum.equals(checkSumValue)) {
+            new ItemSession(this, m_configurations.get(configId), contentFile, configurationDirectory, checksum)
+                .start();
+            return true;
+        }
+
+        contentFile.delete();
+        return false;
+    }
+
+    private MessageDigest getMessageDigest(final String configId) throws DepositorException {
+        MessageDigest md = null;
+        try {
+            md =
+                MessageDigest.getInstance(m_configurations.get(configId).getProperty(
+                    Constants.PROPERTY_CHECKSUM_ALGORITHM));
+        }
+        catch (NoSuchAlgorithmException e) {
+            logger.error(e.getMessage());
+            throw new DepositorException(e.getMessage());
+        }
+        return md;
+    }
+
+    // check if filename is already sent for this configuration
+    private static void checkFileName(final String configId, final String fileName, File configurationDirectory)
+        throws AlreadyExistException {
         File[] files = configurationDirectory.listFiles();
         for (int i = 0; i < files.length; i++) {
             String name = files[i].getName();
@@ -822,67 +866,44 @@ public class SessionManager extends Thread {
                 }
             }
         }
+    }
 
-        putMonitoringStartTimeIntoConfigurationIfMissing(configId);
-        Properties configuration = m_configurations.get(configId);
-        String checkSumAlg = configuration.getProperty(Constants.PROPERTY_CHECKSUM_ALGORITHM);
-
-        // store stream content in file named with filename while computing the
-        // message digest
-        File contentFile = new File(configurationDirectory, fileName);
-        FileOutputStream os = null;
-        try {
-            os = new FileOutputStream(contentFile);
-        }
-        catch (FileNotFoundException e) {
-            logger.error(e.getMessage());
-            throw new DepositorException(e.getMessage());
-        }
-        MessageDigest md = null;
-        try {
-            md = MessageDigest.getInstance(checkSumAlg);
-        }
-        catch (NoSuchAlgorithmException e) {
-            logger.error(e.getMessage());
-            throw new DepositorException(e.getMessage());
+    private void checkPreconditions(final String configId) throws DepositorException, AlreadyExpiredException,
+        ApplicationException {
+        if (m_threadNumber == m_maxThreadNumber) {
+            logger.error(ERR_MAX_THREADS_);
+            throw new DepositorException(ERR_MAX_THREADS_);
         }
 
-        DigestInputStream din = new DigestInputStream(in, md);
-
-        byte[] buf = new byte[5000];
-        int len;
-        try {
-            while ((len = din.read(buf)) > 0) {
-                os.write(buf, 0, len);
-            }
-            os.close();
-            din.close();
-
-        }
-        catch (IOException e) {
-            logger.error(e.getMessage());
-            throw new DepositorException(e.getMessage());
+        if (m_expiredSuccessfulConfigurations.containsKey(configId)
+            || m_expiredConfigurationsSinceLastRun.contains(configId) || m_isCleaning.contains(configId)) {
+            String message = "A session for the configuration with " + configId + " is expired.";
+            logger.error(message);
+            throw new AlreadyExpiredException(message);
         }
 
-        // compare computed digest with the one send with the request
-        byte[] digest = md.digest();
-        String checksum = Utility.byteArraytoHexString(digest);
-        logger.debug("checksum[" + checksum + "]");
-
-        // now, content from the request is stored and validated.
-        // create a session and start it. The session computed all additional
-        // information and stores the content as component content in an item in
-        // the eSciDoc Infrastructure.
-        if (checksum.equals(checkSumValue)) {
-            ItemSession session = new ItemSession(this, configuration, contentFile, configurationDirectory, checksum);
-            session.start();
-            return true;
-        }
-        else {
-            contentFile.delete();
-            return false;
+        if (m_failedExpired_configurationDirectories.containsKey(configId)) {
+            String message =
+                "A configuration with id  "
+                    + configId
+                    + " is expiered and failed due to an internal failure on a deposit service or on an infrastructure.";
+            logger.error(message);
+            throw new DepositorException(message);
         }
 
+        if (m_failedConfigurations.containsKey(configId)) {
+            String message =
+                "Error on Depositor: can not temporary accept content files for the configuration with the id "
+                    + configId + " due to an internal failure on a deposit service or on an infrastructure.";
+            logger.error(message);
+            throw new DepositorException(message);
+        }
+
+        if (!m_configurations.containsKey(configId)) {
+            String message = "Can not find a configuration with the id " + configId + ".";
+            logger.error(message);
+            throw new ApplicationException(message);
+        }
     }
 
     /**
@@ -922,8 +943,10 @@ public class SessionManager extends Thread {
                 }
                 try {
                     configuration.storeToXML(os, null);
-                    os.flush();
-                    os.close();
+                    if (os != null) {
+                        os.flush();
+                        os.close();
+                    }
                 }
                 catch (IOException e) {
                     logger.error(e.getMessage());
@@ -1083,4 +1106,5 @@ public class SessionManager extends Thread {
             }
         }
     }
+
 }
