@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
-    <entry key="ConfigurationID">chh-0006</entry>
-    
-    <entry key="WorkspaceID">escidoc:16</entry>
-    <entry key="ExperimentID">escidoc:120</entry>
-    <entry key="ContentModelID">escidoc:8</entry>
+    <entry key="ConfigurationID">chh-0013</entry>
+        <entry key="UserHandle">ESCIDOC-iQohaJ81FX1323076937047</entry>
+
+    <entry key="WorkspaceID">escidoc:2</entry>
+    <entry key="ExperimentID">escidoc:4</entry>
+    <entry key="ContentModelID">escidoc:3</entry>
     
     <entry key="DepositServerEndpoint">http://localhost:8080/deposit-service/depositor</entry>
-    <entry key="InfrastructureEndpoint">http://esfedrep1.fiz-karlsruhe.de:8080</entry>
-    <entry key="UserHandle">ESCIDOC-1D0DhQRfVT1322847730978</entry>
+    <entry key="InfrastructureEndpoint">http://escidev4.fiz-karlsruhe.de:8080</entry>
+
     
     <entry key="CheckSumType">md5</entry>
     <entry key="UserEMailAddress">christian.herlambang-at-FIZ-Karlsruhe.de</entry>

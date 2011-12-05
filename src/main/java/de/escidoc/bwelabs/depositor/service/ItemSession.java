@@ -34,13 +34,6 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
-import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
-import org.escidoc.core.client.ingest.exceptions.IngestException;
-import org.escidoc.core.client.ingest.filesystem.FileIngester;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -53,6 +46,13 @@ import java.util.Properties;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
+
+import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
+import org.escidoc.core.client.ingest.exceptions.IngestException;
+import org.escidoc.core.client.ingest.filesystem.FileIngester;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
@@ -217,13 +217,6 @@ public class ItemSession extends Thread {
 
         String handle = _configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
 
-        // PostMethod post = null;
-        // String itemId = null;
-        // try {
-        // post = EscidocConnector.createItemInContainer(escidocBaseUrl,
-        // containerId, handle, itemXml);
-        // }
-
         FileIngester ingester = new FileIngester(escidocBaseUrl, handle, containerId);
 
         ingester.addFile(_pathToContentFile);
@@ -232,8 +225,10 @@ public class ItemSession extends Thread {
         ingester.setItemContentModel(_configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         ingester.setContext(_configuration.getProperty(Configuration.PROPERTY_CONTEXT_ID));
         ingester.setContentCategory("ORIGINAL");
-        ingester.setInitialLifecycleStatus(PublicStatus.PENDING); // ingester.getLifecycleStatus().get(0));
-        ingester.setMimeType("text/xml"); // ingester.getMimeTypes().get(0));
+        ingester.setInitialLifecycleStatus(PublicStatus.PENDING);
+        ingester.setVisibility("public");
+        ingester.setValidStatus("valid");
+        ingester.setMimeType("text/xml");
 
         try {
             ingester.setForceCreate(true);
@@ -275,7 +270,6 @@ public class ItemSession extends Thread {
         if (!success) {
             LOG.error("A content file " + fileName + " could not be renamed to a 'successful_" + fileName + "'."
                 + " for a configuration with id " + configurationId);
-
         }
         else {
             // workaround because of a bug in Java1.5

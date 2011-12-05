@@ -34,9 +34,6 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -46,6 +43,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.SAXParserFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.escidoc.bwelabs.depositor.error.AlreadyExistException;
 import de.escidoc.bwelabs.depositor.error.AlreadyExpiredException;
@@ -109,11 +109,8 @@ public class DepositorServlet extends HttpServlet {
     public void doPut(final HttpServletRequest request, final HttpServletResponse response) {
         LOGGER.debug("PUT");
         String pathInfo = request.getPathInfo();
-
         InputStream is = readInputStream(request, response);
-
         LOGGER.debug("pathInfo: " + pathInfo);
-        System.out.println(pathInfo);
         if (PATH_FOR_SENDING_NEW_CONFIGURATION.equals(pathInfo)) {
             if (is == null) {
                 String message = "Configuration stream is null";

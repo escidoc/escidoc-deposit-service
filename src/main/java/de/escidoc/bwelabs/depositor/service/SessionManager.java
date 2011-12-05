@@ -34,16 +34,6 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
-import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
-import org.escidoc.core.client.ingest.exceptions.IngestException;
-import org.escidoc.core.client.ingest.filesystem.FileIngester;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -61,6 +51,16 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 
+import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
+import org.escidoc.core.client.ingest.exceptions.IngestException;
+import org.escidoc.core.client.ingest.filesystem.FileIngester;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.AlreadyExistException;
 import de.escidoc.bwelabs.depositor.error.AlreadyExpiredException;
@@ -68,6 +68,7 @@ import de.escidoc.bwelabs.depositor.error.ApplicationException;
 import de.escidoc.bwelabs.depositor.error.ConnectionException;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
 import de.escidoc.bwelabs.depositor.error.InfrastructureException;
+import de.escidoc.bwelabs.depositor.error.MissingConfigurationPropertyException;
 import de.escidoc.bwelabs.depositor.error.WrongFormatException;
 import de.escidoc.bwelabs.depositor.utility.EscidocUtility;
 import de.escidoc.bwelabs.depositor.utility.Utility;
@@ -81,7 +82,7 @@ import de.escidoc.core.resources.common.properties.PublicStatus;
  */
 public class SessionManager extends Thread {
 
-    private static final Logger logger = LoggerFactory.getLogger(SessionManager.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(SessionManager.class.getName());
 
     public static final String PROP_BASEDIR = "depositor.sessionBaseDir";
 
@@ -102,11 +103,11 @@ public class SessionManager extends Thread {
 
     private HashMap<String, Properties> m_configurations;
 
-    private HashMap<String, String> m_configurationDirectoriesPathes = null;
+    private HashMap<String, String> m_configurationDirectoriesPathes;
 
-    private HashMap<String, Properties> m_failedConfigurations = null;
+    private HashMap<String, Properties> m_failedConfigurations;
 
-    private HashMap<String, Properties> m_expiredSuccessfulConfigurations = null;
+    private HashMap<String, Properties> m_expiredSuccessfulConfigurations;
 
     private Map<String, Vector<ItemSession>> m_sessions;
 
@@ -133,14 +134,14 @@ public class SessionManager extends Thread {
         String dir = props.getProperty(PROP_BASEDIR);
         if (dir == null) {
             String message = "Required property missing: " + PROP_BASEDIR;
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
         String threads = props.getProperty(PROP_MAX_THREAD_NUMBER);
         if (threads == null) {
             String message = "Required property missing: " + PROP_MAX_THREAD_NUMBER;
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
         int threadNumber;
@@ -149,14 +150,14 @@ public class SessionManager extends Thread {
         }
         catch (Exception e) {
             String message = "Required property must an integer: " + PROP_MAX_THREAD_NUMBER;
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
         String propertyPingInterval = props.getProperty(PROP_PING_INTERVAL);
         if (propertyPingInterval == null) {
             String message = "Required property missing: " + PROP_PING_INTERVAL;
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
@@ -166,7 +167,7 @@ public class SessionManager extends Thread {
         }
         catch (Exception e) {
             String message = "Required property must an integer: " + PROP_PING_INTERVAL;
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
@@ -193,7 +194,7 @@ public class SessionManager extends Thread {
             throw new DepositorException("Unable to restore configuration directories within a base directory: "
                 + m_baseDir.getPath());
         if (dirs.length > 0) {
-            logger.info("Restoring configurations from last run...");
+            LOG.info("Restoring configurations from last run...");
 
             for (int i = 0; i < dirs.length; i++) {
                 if (dirs[i].isDirectory()) {
@@ -206,7 +207,7 @@ public class SessionManager extends Thread {
                                 + "/"
                                 + dirName
                                 + " on start up of the Depositor: a configuration file does not exist in the directory.";
-                        logger.error(message);
+                        LOG.error(message);
                         continue;
                     }
 
@@ -234,14 +235,14 @@ public class SessionManager extends Thread {
                             String message =
                                 "Can not restore the configuration data from the directory " + m_baseDir + "/"
                                     + dirName + " on start up of the Depositor:";
-                            logger.error(message + e.getMessage());
+                            LOG.error(message + e.getMessage());
                             continue;
                         }
                         catch (IOException e) {
                             String message =
                                 "Can not restore the configuration from the directory " + m_baseDir + "/" + dirName
                                     + " on start up of the Depositor:";
-                            logger.error(message + e.getMessage());
+                            LOG.error(message + e.getMessage());
                             continue;
                         }
 
@@ -250,7 +251,7 @@ public class SessionManager extends Thread {
                         String message =
                             "Can not restore the configuration data from the directory " + m_baseDir + "/" + dirName
                                 + " on start up of the Depositor:";
-                        logger.error(message + e.getMessage());
+                        LOG.error(message + e.getMessage());
                         continue;
                     }
                     // save configuration directory from last run to
@@ -290,7 +291,7 @@ public class SessionManager extends Thread {
                 }
                 catch (DepositorException e) {
                     // FIXME give a message
-                    logger.error(e.getMessage(), e);
+                    LOG.error(e.getMessage(), e);
                     addToFailedConfigurations(configId);
                 }
             }
@@ -413,7 +414,7 @@ public class SessionManager extends Thread {
                                             }
                                             catch (DepositorException e) {
                                                 // FIXME give a message
-                                                logger.error(e.getMessage(), e);
+                                                LOG.error(e.getMessage(), e);
                                             }
                                         }
                                     }
@@ -515,11 +516,11 @@ public class SessionManager extends Thread {
     public void storeConfiguration(InputStream configurationStream) throws ApplicationException, DepositorException,
         ConnectionException, InfrastructureException {
         if (m_threadNumber == m_maxThreadNumber) {
-            logger.error(ERR_MAX_THREADS_);
+            LOG.error(ERR_MAX_THREADS_);
             throw new DepositorException(ERR_MAX_THREADS_);
         }
 
-        logger.debug("Checking configuration");
+        LOG.debug("Checking configuration");
         checkConfiguration(configurationStream);
     }
 
@@ -544,65 +545,94 @@ public class SessionManager extends Thread {
     private void checkConfiguration(InputStream configurationStream) throws InfrastructureException,
         DepositorException, ConnectionException, ApplicationException {
 
-        String configurationId;
-        Configuration configProperties;
+        Configuration configProperties = buildConfiguration(configurationStream);
 
+        checkIfAlreadyExists(getConfigurationId(configProperties));
+
+        File configFile = saveInLocalFileSystem(configProperties, getConfigurationId(configProperties));
+
+        ingestConfiguration(configProperties, configFile);
+
+        synchronized (m_configurations) {
+            LOG.info("Successful saved a configuration with the id " + getConfigurationId(configProperties)
+                + " in the directory " + m_baseDir + "/"
+                + m_configurationDirectoriesPathes.get(getConfigurationId(configProperties)));
+            m_configurations.put(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID),
+                configProperties);
+        }
+    }
+
+    private void ingestConfiguration(Configuration configProperties, File configFile) throws DepositorException {
+        FileIngester ingester =
+            buildFileIngester(configProperties, configFile,
+                m_configurationDirectoriesPathes.get(getConfigurationId(configProperties)));
         try {
+            LOG.debug("ingesting configuration");
+            ingester.setForceCreate(true);
+            ingester.ingest();
+            // FIXME
+        }
+        catch (ConfigurationException e) {
+            LOG.debug("Error occured while ", e);
+            throw new DepositorException(e);
+        }
+        catch (IngestException e) {
+            LOG.debug("ups", e);
+            throw new DepositorException(e);
+        }
+        catch (Throwable e) {
+            LOG.debug("ups", e);
 
+        }
+    }
+
+    private String getConfigurationId(Configuration configProperties) {
+        String configurationId = configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
+        LOG.debug("Configuration ID: " + configurationId);
+        return configurationId;
+    }
+
+    private Configuration buildConfiguration(InputStream configurationStream)
+        throws MissingConfigurationPropertyException, WrongFormatException, DepositorException {
+        Configuration configProperties;
+        try {
             configProperties = new Configuration();
             configProperties.loadFromXML(configurationStream);
 
-            configurationId = configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
-            logger.debug("Configuration ID: " + configurationId);
-
             if (configProperties.isValid()) {
-                logger.debug("Config is valid.");
+                LOG.debug("Config is valid.");
             }
             else {
-                logger.debug("Config is invalid.");
+                LOG.debug("Config is invalid.");
             }
 
         }
         catch (InvalidPropertiesFormatException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new WrongFormatException(e.getMessage(), e);
         }
         catch (IOException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage(), e);
         }
         catch (NoSuchAlgorithmException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage(), e);
         }
+        return configProperties;
+    }
 
-        // check if configuration ID is already registered
-        if (m_configurations.containsKey(configurationId)
-            || m_expiredSuccessfulConfigurations.containsKey(configurationId)
-            || m_failedExpired_configurationDirectories.containsKey(configurationId)) {
-            String message =
-                "The configuration with id " + configurationId + " is already registered by a Deposit service.";
-            logger.error(message);
-            throw new AlreadyExistException(message);
-        }
-
-        logger.debug("saving configuration");
-        // save configuration
-        File configFile = saveConfiguration(configProperties, configurationId);
-        // get directory for this configuration created in saveConfiguration()
-        String configDirName = m_configurationDirectoriesPathes.get(configurationId);
-
-        logger.debug("prepare ingesting configuration");
-        FileIngester ingester = null;
-        ingester =
+    private FileIngester buildFileIngester(Configuration configProperties, File configFile, String configDirName) {
+        LOG.debug("prepare ingesting configuration");
+        FileIngester ingester =
             new FileIngester(configProperties.getProperty(Configuration.PROPERTY_INFRASTRUCTURE_ENDPOINT),
                 configProperties.getProperty(Configuration.PROPERTY_USER_HANDLE),
                 configProperties.getProperty(Configuration.PROPERTY_EXPERIMENT_ID));
 
-        System.out.println("should be the same:[");
-        System.out.println(m_baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
-        System.out.println(configFile.getPath());
-        System.out.println("]");
+        LOG.debug("should be the same:[");
+        LOG.debug(m_baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
+        LOG.debug(configFile.getPath());
+        LOG.debug("]");
 
         ingester.addFile(m_baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
         ingester.setItemContentModel(configProperties.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
@@ -610,35 +640,21 @@ public class SessionManager extends Thread {
         ingester.setContainerContentModel(configProperties.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         ingester.setContext(configProperties.getProperty(Configuration.PROPERTY_CONTEXT_ID));
         ingester.setContentCategory("ORIGINAL");
-        ingester.setInitialLifecycleStatus(PublicStatus.PENDING); // ingester.getLifecycleStatus().get(0));
-        ingester.setMimeType("text/xml"); // ingester.getMimeTypes().get(0));
+        ingester.setInitialLifecycleStatus(PublicStatus.PENDING);
+        ingester.setMimeType("text/xml");
         ingester.setValidStatus("valid");
         ingester.setVisibility("visible");
+        return ingester;
+    }
 
-        try {
-            logger.debug("ingesting configuration");
-            ingester.setForceCreate(true);
-            ingester.ingest();
-            // FIXME
-        }
-        catch (ConfigurationException e) {
-            logger.debug("ups", e);
-            throw new DepositorException(e);
-        }
-        catch (IngestException e) {
-            logger.debug("ups", e);
-            throw new DepositorException(e);
-        }
-        catch (Throwable e) {
-            logger.debug("ups", e);
-
-        }
-
-        synchronized (m_configurations) {
-            logger.info("Successful saved a configuration with the id " + configurationId + " in the directory "
-                + m_baseDir + "/" + configDirName);
-            m_configurations.put(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID),
-                configProperties);
+    private void checkIfAlreadyExists(String configurationId) throws AlreadyExistException {
+        if (m_configurations.containsKey(configurationId)
+            || m_expiredSuccessfulConfigurations.containsKey(configurationId)
+            || m_failedExpired_configurationDirectories.containsKey(configurationId)) {
+            String message =
+                "The configuration with id " + configurationId + " is already registered by a Deposit service.";
+            LOG.error(message);
+            throw new AlreadyExistException(message);
         }
     }
 
@@ -665,7 +681,9 @@ public class SessionManager extends Thread {
      * @return File with a created configuration directory.
      * @throws DepositorException
      */
-    private File saveConfiguration(Properties configuration, String configurationId) throws DepositorException {
+    private File saveInLocalFileSystem(Properties configuration, String configurationId) throws DepositorException {
+
+        LOG.debug("saving configuration in local file system");
         DateTimeZone.setDefault(DateTimeZone.UTC);
         DateTime currentTime = new DateTime();
         DateTimeFormatter fmt = DateTimeFormat.forPattern(PATH_FORMAT);
@@ -678,7 +696,7 @@ public class SessionManager extends Thread {
             os = new FileOutputStream(configurationFile);
         }
         catch (FileNotFoundException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
         }
         try {
@@ -691,7 +709,7 @@ public class SessionManager extends Thread {
 
         }
         catch (IOException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
         }
         return configurationFile;
@@ -714,7 +732,7 @@ public class SessionManager extends Thread {
             String message =
                 "Can not delete the configuration: depositor could not store some content "
                     + "files for this configuration into the infrastracture.";
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
@@ -722,7 +740,7 @@ public class SessionManager extends Thread {
             synchronized (m_configurations) {
                 if (!m_configurations.containsKey(configId)) {
                     String message = "Depositor can not find a configuration with the id " + configId + ".";
-                    logger.error(message);
+                    LOG.error(message);
                     throw new ApplicationException(message);
                 }
                 // the configuration is not deleting at the moment by any
@@ -777,7 +795,7 @@ public class SessionManager extends Thread {
         if (!configurationDirectory.exists()) {
             String message =
                 "Error on Depositor: can not found a directory for the configuration with the id " + configId + ".";
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
     }
@@ -791,7 +809,7 @@ public class SessionManager extends Thread {
             os = new FileOutputStream(contentFile);
         }
         catch (FileNotFoundException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
         }
         MessageDigest md = getMessageDigest(configId);
@@ -806,7 +824,7 @@ public class SessionManager extends Thread {
             din.close();
         }
         catch (IOException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
         }
         return md;
@@ -819,7 +837,7 @@ public class SessionManager extends Thread {
         // compare computed digest with the one send with the request
         byte[] digest = md.digest();
         String checksum = Utility.byteArraytoHexString(digest);
-        logger.debug("checksum[" + checksum + "]");
+        LOG.debug("checksum[" + checksum + "]");
 
         // now, content from the request is stored and validated.
         // create a session and start it. The session computed all additional
@@ -843,7 +861,7 @@ public class SessionManager extends Thread {
                     Constants.PROPERTY_CHECKSUM_ALGORITHM));
         }
         catch (NoSuchAlgorithmException e) {
-            logger.error(e.getMessage());
+            LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
         }
         return md;
@@ -861,7 +879,7 @@ public class SessionManager extends Thread {
                     String message =
                         "A content file '" + fileName + "' for the configuration with id " + configId
                             + " already exists on Depositor.";
-                    logger.error(message);
+                    LOG.error(message);
                     throw new AlreadyExistException(message);
                 }
             }
@@ -871,14 +889,14 @@ public class SessionManager extends Thread {
     private void checkPreconditions(final String configId) throws DepositorException, AlreadyExpiredException,
         ApplicationException {
         if (m_threadNumber == m_maxThreadNumber) {
-            logger.error(ERR_MAX_THREADS_);
+            LOG.error(ERR_MAX_THREADS_);
             throw new DepositorException(ERR_MAX_THREADS_);
         }
 
         if (m_expiredSuccessfulConfigurations.containsKey(configId)
             || m_expiredConfigurationsSinceLastRun.contains(configId) || m_isCleaning.contains(configId)) {
             String message = "A session for the configuration with " + configId + " is expired.";
-            logger.error(message);
+            LOG.error(message);
             throw new AlreadyExpiredException(message);
         }
 
@@ -887,7 +905,7 @@ public class SessionManager extends Thread {
                 "A configuration with id  "
                     + configId
                     + " is expiered and failed due to an internal failure on a deposit service or on an infrastructure.";
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
@@ -895,13 +913,13 @@ public class SessionManager extends Thread {
             String message =
                 "Error on Depositor: can not temporary accept content files for the configuration with the id "
                     + configId + " due to an internal failure on a deposit service or on an infrastructure.";
-            logger.error(message);
+            LOG.error(message);
             throw new DepositorException(message);
         }
 
         if (!m_configurations.containsKey(configId)) {
             String message = "Can not find a configuration with the id " + configId + ".";
-            logger.error(message);
+            LOG.error(message);
             throw new ApplicationException(message);
         }
     }
@@ -938,7 +956,7 @@ public class SessionManager extends Thread {
                     os = new FileOutputStream(configurationFile);
                 }
                 catch (FileNotFoundException e) {
-                    logger.error(e.getMessage());
+                    LOG.error(e.getMessage());
 
                 }
                 try {
@@ -949,7 +967,7 @@ public class SessionManager extends Thread {
                     }
                 }
                 catch (IOException e) {
-                    logger.error(e.getMessage());
+                    LOG.error(e.getMessage());
 
                 }
             }
@@ -1098,7 +1116,7 @@ public class SessionManager extends Thread {
             boolean success = configurationDirectory.renameTo(new File(m_baseDir, "failed_expired_" + configDirName));
             if (!success) {
                 m_failedExpired_configurationDirectories.put(configurationId, configDirName);
-                logger.error("Error while cleaning up sessions for the configuration with id " + configurationId
+                LOG.error("Error while cleaning up sessions for the configuration with id " + configurationId
                     + " : can not rename a configuration directory to 'failed_expired_" + configDirName + "'.");
             }
             else {
