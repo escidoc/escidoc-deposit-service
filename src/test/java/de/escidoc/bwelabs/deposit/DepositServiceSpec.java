@@ -44,9 +44,15 @@ public class DepositServiceSpec {
     private static final String SERVICE_URL = "http://escidev4.fiz-karlsruhe.de:8080/";
 
     private static final String CONFIGURATION_DEPOSIT_URI =
+<<<<<<< HEAD
         "http://localhost:8083/deposit-service/depositor/configuration";
 
     private static final String CONTENT_DEPOSIT_URI = "http://localhost:8083/deposit-service/depositor";
+=======
+        "http://localhost:8086/deposit-service/depositor/configuration";
+
+    private static final String CONTENT_DEPOSIT_URI = "http://localhost:8086/deposit-service/depositor";
+>>>>>>> 0cf2227... works basically
 
     private static final String SYSADMIN = "sysadmin";
 
@@ -124,6 +130,7 @@ public class DepositServiceSpec {
         // When
         if (isSavingSuccesful(configuration)) {
             for (int i = 0; i < HOW_MANY; i++) {
+                Thread.sleep(3000);
                 HttpResponse response = saveContent(configuration, id, CONTENT_EXAMPLE + new Date().getTime());
                 int statusCode = response.getStatusLine().getStatusCode();
                 LOG.debug("Status code: " + statusCode);
