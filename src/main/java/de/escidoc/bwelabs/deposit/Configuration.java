@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import de.escidoc.bwelabs.depositor.error.MissingConfigurationPropertyException;
 import de.escidoc.bwelabs.depositor.service.Constants;
 
+@SuppressWarnings("serial")
 public class Configuration extends Properties {
 
     private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
@@ -171,5 +172,4 @@ public class Configuration extends Properties {
         }
         return true;
     }
-
 }

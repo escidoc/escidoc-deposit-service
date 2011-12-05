@@ -11,7 +11,6 @@
 	<entry key="DepositServerEndpoint">http://localhost:8080/deposit-service/depositor</entry>
 	<entry key="InfrastructureEndpoint">http://escidev4.fiz-karlsruhe.de:8080</entry>
 
-
 	<entry key="CheckSumType">md5</entry>
 	<entry key="UserEMailAddress">christian.herlambang-at-FIZ-Karlsruhe.de</entry>
 

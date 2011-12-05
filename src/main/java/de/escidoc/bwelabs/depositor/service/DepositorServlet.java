@@ -63,9 +63,9 @@ import de.escidoc.bwelabs.depositor.error.WrongFormatException;
  */
 public class DepositorServlet extends HttpServlet {
 
-    private static final String CONTENT_DISPOSITION = "Content-Disposition";
+    public static final String CONTENT_DISPOSITION_HEADER = "Content-Disposition";
 
-    private static final String ESCIDOC_CHECKSUM_HEADER = "X-ESciDoc-CheckSum";
+    public static final String ESCIDOC_CHECKSUM_HEADER = "X-ESciDoc-CheckSum";
 
     private static final long serialVersionUID = -2846807557758308527L;
 
@@ -250,7 +250,7 @@ public class DepositorServlet extends HttpServlet {
     private void checkSum(HttpServletRequest request, HttpServletResponse response, InputStream is) {
         try {
             String checkSumValue = request.getHeader(ESCIDOC_CHECKSUM_HEADER);
-            String fileName = request.getHeader(CONTENT_DISPOSITION);
+            String fileName = request.getHeader(CONTENT_DISPOSITION_HEADER);
             String configId = request.getPathInfo().substring(1);
 
             // FIXME check for empty value OR null and react accordingly
