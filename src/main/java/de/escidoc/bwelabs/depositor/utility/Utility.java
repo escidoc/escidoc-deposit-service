@@ -60,12 +60,12 @@ public class Utility {
      *            The link
      * @return The extracted id.
      */
-    public static String getId(final String link) {
-        String result = link;
-        int index = link.lastIndexOf("/");
-        if (index != -1) {
-            result = link.substring(link.lastIndexOf("/") + 1);
-        }
-        return result;
-    }
+    // public static String getId(final String link) {
+    // String result = link;
+    // int index = link.lastIndexOf("/");
+    // if (index != -1) {
+    // result = link.substring(link.lastIndexOf("/") + 1);
+    // }
+    // return result;
+    // }
 }

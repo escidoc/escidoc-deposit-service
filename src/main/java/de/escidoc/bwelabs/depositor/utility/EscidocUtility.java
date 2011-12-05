@@ -85,36 +85,36 @@ public class EscidocUtility {
      * @param componentHref
      * @return
      */
-    public static String createContentItemXml(
-        final Properties configuration, final String pathToContentFile, final String escidocMetadata,
-        final String lastModDate, final String itemHef, final String componentHref) {
-        String properties =
-            "<escidocItem:properties xmlns:prop=\"" + Constants.PROPERTIES_NS_URI + "\" xmlns:srel=\""
-                + Constants.STRUCTURAL_RELATIONS_NS_URI + "\"><srel:context xlink:href=\"/ir/context/"
-                + configuration.getProperty(Constants.PROPERTY_CONTEXT_ID) + "\" />"
-                + "<srel:content-model xlink:href=\"/cmm/content-model/"
-                + configuration.getProperty(Constants.PROPERTY_CONTENT_MODEL_ID) + "\" />"
-                + "</escidocItem:properties>";
-        String mdRecords =
-            "<escidocMetadataRecords:md-records xmlns:escidocMetadataRecords=\""
-                + Constants.METADATARECORDS_NAMESPACE_URI + "\"><escidocMetadataRecords:md-record name=\"escidoc\">"
-                + escidocMetadata + "</escidocMetadataRecords:md-record></escidocMetadataRecords:md-records>";
-        String itemStart =
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + "<escidocItem:item xmlns:escidocItem=\""
-                + Constants.ITEM_NAMESPACE_URI + "\" xmlns:xlink=\"" + Constants.XLINK_NS_URI;
-        if (itemHef == null) {
-            itemStart = itemStart + "\">";
-        }
-        else {
-            itemStart = itemStart + "\" xlink:href=\"" + itemHef + "\" last-modification-date=\"" + lastModDate + "\">";
-        }
-
-        String itemEnd = "</escidocItem:item>";
-        String item =
-            itemStart + properties + mdRecords + createComponentXml(pathToContentFile, componentHref) + itemEnd;
-
-        return item;
-    }
+    // public static String createContentItemXml(
+    // final Properties configuration, final String pathToContentFile, final String escidocMetadata,
+    // final String lastModDate, final String itemHef, final String componentHref) {
+    // String properties =
+    // "<escidocItem:properties xmlns:prop=\"" + Constants.PROPERTIES_NS_URI + "\" xmlns:srel=\""
+    // + Constants.STRUCTURAL_RELATIONS_NS_URI + "\"><srel:context xlink:href=\"/ir/context/"
+    // + configuration.getProperty(Constants.PROPERTY_CONTEXT_ID) + "\" />"
+    // + "<srel:content-model xlink:href=\"/cmm/content-model/"
+    // + configuration.getProperty(Constants.PROPERTY_CONTENT_MODEL_ID) + "\" />"
+    // + "</escidocItem:properties>";
+    // String mdRecords =
+    // "<escidocMetadataRecords:md-records xmlns:escidocMetadataRecords=\""
+    // + Constants.METADATARECORDS_NAMESPACE_URI + "\"><escidocMetadataRecords:md-record name=\"escidoc\">"
+    // + escidocMetadata + "</escidocMetadataRecords:md-record></escidocMetadataRecords:md-records>";
+    // String itemStart =
+    // "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + "<escidocItem:item xmlns:escidocItem=\""
+    // + Constants.ITEM_NAMESPACE_URI + "\" xmlns:xlink=\"" + Constants.XLINK_NS_URI;
+    // if (itemHef == null) {
+    // itemStart = itemStart + "\">";
+    // }
+    // else {
+    // itemStart = itemStart + "\" xlink:href=\"" + itemHef + "\" last-modification-date=\"" + lastModDate + "\">";
+    // }
+    //
+    // String itemEnd = "</escidocItem:item>";
+    // String item =
+    // itemStart + properties + mdRecords + createComponentXml(pathToContentFile, componentHref) + itemEnd;
+    //
+    // return item;
+    // }
 
     /**
      * Method builds an escidoc-item-xml from a provided configuration and a local path to a configuration file relative
@@ -124,32 +124,32 @@ public class EscidocUtility {
      * @param pathToConfigFile
      * @return
      */
-    public static String createConfigurationItemXml(final Properties configuration, final String pathToConfigFile) {
-        // FIXME Content Model ID must not be the one for content files. Get
-        // Content Model for configuration items from depositor.properties.
-        String properties =
-            "<escidocItem:properties xmlns:prop=\"" + Constants.PROPERTIES_NS_URI + "\" xmlns:srel=\""
-                + Constants.STRUCTURAL_RELATIONS_NS_URI + "\"><srel:context xlink:href=\"/ir/context/"
-                + configuration.getProperty(Constants.PROPERTY_CONTEXT_ID) + "\" />"
-                + "<srel:content-model xlink:href=\"/cmm/content-model/"
-                + configuration.getProperty(Constants.PROPERTY_CONTENT_MODEL_ID) + "\" />"
-                + "</escidocItem:properties>";
-        String mdRecords =
-            "<escidocMetadataRecords:md-records xmlns:escidocMetadataRecords=\""
-                + Constants.METADATARECORDS_NAMESPACE_URI + "\"><escidocMetadataRecords:md-record name=\"escidoc\">"
-                + "<oai_dc:dc xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
-                + "xmlns:oai_dc=\"http://www.openarchives.org/OAI/2.0/oai_dc/\"" + " >\n"
-                + "<dc:title>eLabs Experiment Configuration</dc:title>\n" + "<dc:identifier>"
-                + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID) + "</dc:identifier></oai_dc:dc>\n"
-                + "</escidocMetadataRecords:md-record></escidocMetadataRecords:md-records>";
-        String itemStart =
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + "<escidocItem:item xmlns:escidocItem=\""
-                + Constants.ITEM_NAMESPACE_URI + "\" xmlns:xlink=\"" + Constants.XLINK_NS_URI + "\">";
-        String itemEnd = "</escidocItem:item>";
-        String item = itemStart + properties + mdRecords + createComponentXml(pathToConfigFile, null) + itemEnd;
-
-        return item;
-    }
+    // public static String createConfigurationItemXml(final Properties configuration, final String pathToConfigFile) {
+    // // FIXME Content Model ID must not be the one for content files. Get
+    // // Content Model for configuration items from depositor.properties.
+    // String properties =
+    // "<escidocItem:properties xmlns:prop=\"" + Constants.PROPERTIES_NS_URI + "\" xmlns:srel=\""
+    // + Constants.STRUCTURAL_RELATIONS_NS_URI + "\"><srel:context xlink:href=\"/ir/context/"
+    // + configuration.getProperty(Constants.PROPERTY_CONTEXT_ID) + "\" />"
+    // + "<srel:content-model xlink:href=\"/cmm/content-model/"
+    // + configuration.getProperty(Constants.PROPERTY_CONTENT_MODEL_ID) + "\" />"
+    // + "</escidocItem:properties>";
+    // String mdRecords =
+    // "<escidocMetadataRecords:md-records xmlns:escidocMetadataRecords=\""
+    // + Constants.METADATARECORDS_NAMESPACE_URI + "\"><escidocMetadataRecords:md-record name=\"escidoc\">"
+    // + "<oai_dc:dc xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
+    // + "xmlns:oai_dc=\"http://www.openarchives.org/OAI/2.0/oai_dc/\"" + " >\n"
+    // + "<dc:title>eLabs Experiment Configuration</dc:title>\n" + "<dc:identifier>"
+    // + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID) + "</dc:identifier></oai_dc:dc>\n"
+    // + "</escidocMetadataRecords:md-record></escidocMetadataRecords:md-records>";
+    // String itemStart =
+    // "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + "<escidocItem:item xmlns:escidocItem=\""
+    // + Constants.ITEM_NAMESPACE_URI + "\" xmlns:xlink=\"" + Constants.XLINK_NS_URI + "\">";
+    // String itemEnd = "</escidocItem:item>";
+    // String item = itemStart + properties + mdRecords + createComponentXml(pathToConfigFile, null) + itemEnd;
+    //
+    // return item;
+    // }
 
     /**
      * Method builds a component xml from provided local path to a content file and component href. The local path to a
@@ -208,7 +208,7 @@ public class EscidocUtility {
      * @param pathToContentFile
      * @return
      */
-    public static String getDescriptiveMetadata(final String pathToContentFile) {
+    private static String getDescriptiveMetadata(final String pathToContentFile) {
         // FIXME call some metadata extractor
         // FIXME filename is not what send in disposition header if storing once
         // failed
@@ -224,7 +224,7 @@ public class EscidocUtility {
      * @return
      * @throws DepositorException
      */
-    public static String getTechnicalMetadata(final String pathToContentFile) throws DepositorException {
+    private static String getTechnicalMetadata(final String pathToContentFile) throws DepositorException {
         // FIXME errorhandling undefined
 
         // FIXME path is system dependent

@@ -384,10 +384,11 @@ public class DepositorServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         try {
-            this.saxParserFactory = SAXParserFactory.newInstance();
-
-            this.saxParserFactory.setValidating(false);
-            this.saxParserFactory.setNamespaceAware(true);
+            // prepare parser factory for later use
+            // only used for parsing web.xml to get servlet context
+            // this.saxParserFactory = SAXParserFactory.newInstance();
+            // this.saxParserFactory.setValidating(false);
+            // this.saxParserFactory.setNamespaceAware(true);
 
             // from here it seems a base-url for files in this service is build
             String serverName = getServletContext().getInitParameter(INIT_PARAM_SERVER_NAME);
@@ -410,6 +411,7 @@ public class DepositorServlet extends HttpServlet {
             // for extern services.
             this.contentFileServletUrl = "http://" + serverName + ":" + port + "/" + contextPath + "/" + servletPath;
 
+            // load configuration
             InputStream propStream = this.getClass().getResourceAsStream("/depositor.properties");
             if (propStream == null) {
                 String message = "Error loading configuration: /depositor.properties not found in classpath";
@@ -417,22 +419,15 @@ public class DepositorServlet extends HttpServlet {
             }
             Properties props = new Properties();
             props.load(propStream);
-            init(props);
+            // create session manager that will run as thread creating
+            // additional threads for all configurations
+            this.manager = new SessionManager(props, this.contentFileServletUrl);
         }
         catch (Exception e) {
             String message = "Unable to initialize DepositorServlet (" + this.contentFileServletUrl + ")";
             LOGGER.error(message, e);
             throw new ServletException(message, e);
         }
-    }
-
-    /**
-     * 
-     * @param props
-     * @throws DepositorException
-     */
-    public void init(Properties props) throws DepositorException {
-        this.manager = new SessionManager(props, this.contentFileServletUrl);
     }
 
     /**
