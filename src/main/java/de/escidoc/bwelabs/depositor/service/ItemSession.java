@@ -266,6 +266,8 @@ public class ItemSession extends Thread {
             + " belonging to the experiment with id " + containerId + ".");
         // _contentFile.delete();
         String fileName = _contentFile.getName();
+
+        // rename content file with prefix "successful_" because it is stored in infrastructure
         boolean success = _contentFile.renameTo(new File(_configurationDirectory, "successful_" + fileName));
         if (!success) {
             LOG.error("A content file " + fileName + " could not be renamed to a 'successful_" + fileName + "'."
@@ -290,9 +292,9 @@ public class ItemSession extends Thread {
         // _contentFile = new File(_configurationDirectory, "failed_"
         // + fileName);
         // }
-
-        _sessionFailed = true;
-        _manager.addToFailedConfigurations(configurationId);
+        //
+        // _sessionFailed = true;
+        // _manager.addToFailedConfigurations(configurationId);
 
     }
 
