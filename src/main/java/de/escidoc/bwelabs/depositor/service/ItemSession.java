@@ -38,13 +38,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
@@ -52,12 +49,11 @@ import org.escidoc.core.client.ingest.exceptions.IngestException;
 import org.escidoc.core.client.ingest.filesystem.FileIngester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
+
+import com.google.common.base.Preconditions;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
-import de.escidoc.bwelabs.depositor.saxHandler.ContainerHandler;
-import de.escidoc.bwelabs.depositor.saxHandler.ItemHandler;
 import de.escidoc.bwelabs.depositor.utility.Utility;
 import de.escidoc.core.resources.common.properties.PublicStatus;
 
@@ -73,45 +69,71 @@ public class ItemSession extends Thread {
 
     private static SAXParserFactory _saxParserFactory;
 
-    private SessionManager _manager;
+    private SessionManager manager;
 
-    private String _providedCheckSum;
+    private String providedCheckSum;
 
-    private String _pathToContentFile;
+    private String contentFilePath;
 
-    private File _contentFile;
+    private File content;
 
-    private File _configurationDirectory;
+    private File configDir;
 
-    private String _sessionKey;
+    private String sessionKey;
 
-    private Properties _configuration;
+    private Properties configuration;
 
-    private boolean _threadWorking;
+    private boolean isThreadWorking;
 
-    private boolean _sessionFailed = false;
+    private boolean isSessionFailed = false;
 
-    public ItemSession(SessionManager manager, Properties configuration, File contentFile, File configurationDirectory,
+    public ItemSession(SessionManager manager, Properties configuration, File content, File configDir,
         String providedCheckSum) throws DepositorException {
-        _configuration = configuration;
-        _manager = manager;
+        Preconditions.checkNotNull(manager, "manager is null: %s", manager);
+        Preconditions.checkNotNull(configuration, "configuration is null: %s", configuration);
+        Preconditions.checkNotNull(content, "contentFile is null: %s", content);
+        Preconditions.checkNotNull(configDir, "configurationDirectory is null: %s", configDir);
+
+        this.manager = manager;
+        this.configuration = configuration;
         // contentFile is created from configurationDirectory and a filename, so
         // configurationDirectory is not needed to reconstruct the path
-        _pathToContentFile = contentFile.getPath();
         // configurationDirectory.getName() + "/" + contentFile.getName();
-        _contentFile = contentFile;
-        _configurationDirectory = configurationDirectory;
+        this.content = content;
+        this.contentFilePath = content.getPath();
+        this.configDir = configDir;
+
+        assignCheckSum(configuration, content, providedCheckSum);
+        // _configurationId = configId;
+        createUniqueKey();
+        isThreadWorking = true;
+
+        setName("Session-" + sessionKey + "-Retriever");
+    }
+
+    private void createUniqueKey() {
+        String s = "" + this.hashCode();
+        if (s.startsWith("-")) {
+            sessionKey = "Z" + s.substring(1);
+        }
+        else {
+            sessionKey = "X" + s;
+        }
+    }
+
+    private void assignCheckSum(Properties configuration, File content, String providedCheckSum)
+        throws DepositorException {
         if (providedCheckSum == null) {
             // if configuration is restoring from a file system, check sum for
             // content files must be calculated again
             FileInputStream is = null;
             try {
-                is = new FileInputStream(contentFile);
+                is = new FileInputStream(content);
             }
             catch (FileNotFoundException e) {
                 String message =
                     "Error on Restoring configurations from last run: "
-                        + "unexpected exception while reading a content file " + contentFile.getName()
+                        + "unexpected exception while reading a content file " + content.getName()
                         + " of the configuration with id "
                         + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
                 // _LOG.error(message);
@@ -140,33 +162,19 @@ public class ItemSession extends Thread {
             catch (IOException e) {
                 String message =
                     "Error on restoring configurations from last run: "
-                        + "unexpected exception while calculating a check sum for a content file "
-                        + contentFile.getName() + " of the configuration with id "
+                        + "unexpected exception while calculating a check sum for a content file " + content.getName()
+                        + " of the configuration with id "
                         + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID) + e.getMessage();
                 // _LOG.error(message);
                 throw new DepositorException(message);
             }
 
             byte[] digest = md.digest();
-            _providedCheckSum = Utility.byteArraytoHexString(digest);
+            this.providedCheckSum = Utility.byteArraytoHexString(digest);
         }
         else {
-            _providedCheckSum = providedCheckSum;
+            this.providedCheckSum = providedCheckSum;
         }
-        // _configurationId = configId;
-        // make a unique key for this session
-        String s = "" + this.hashCode();
-        if (s.startsWith("-")) {
-            _sessionKey = "Z" + s.substring(1);
-        }
-        else {
-            _sessionKey = "X" + s;
-        }
-
-        _threadWorking = true;
-
-        setName("Session-" + _sessionKey + "-Retriever");
-
     }
 
     // /////////////////////////////////////////////////////////////////////////
@@ -174,19 +182,13 @@ public class ItemSession extends Thread {
      * Content file storage thread.
      */
     public void run() {
-        LOG.info(_sessionKey + " retrieval thread started");
-
-        // after this
-        // point, we
-        // depend on
-        // the session
-        // manager to
-        String configurationId = _configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
-        _manager.addSession(this, configurationId);
-        _manager.increaseThreadsNumber();
+        LOG.info(sessionKey + " retrieval thread started");
+        String configurationId = getConfigurationId();
+        manager.addSession(this, configurationId);
+        manager.increaseThreadsNumber();
         storeFileInToInfrastructure();
-        _manager.decreaseThreadsNumber();
-        _threadWorking = false;
+        manager.decreaseThreadsNumber();
+        isThreadWorking = false;
 
     }
 
@@ -203,97 +205,128 @@ public class ItemSession extends Thread {
      * 
      */
     private void storeFileInToInfrastructure() {
-        boolean createdItemSuccessful = false;
-        String configurationId = _configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
-
-        // FIXME metadata is created in deposit api not here
-        // String itemMetadata = EscidocUtility
-        // .getDescriptiveMetadata(_contentFile.getName());
-        // String itemXml = EscidocUtility.createContentItemXml(_configuration,
-        // _pathToContentFile, itemMetadata, null, null, null);
-        String containerId = _configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
-
-        String escidocBaseUrl = _configuration.getProperty(Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT);
-
-        String handle = _configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
-
-        FileIngester ingester = new FileIngester(escidocBaseUrl, handle, containerId);
-
-        ingester.addFile(_pathToContentFile);
-        // FIXME: container content model is not needed here.
-        ingester.setContainerContentModel(_configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
-        ingester.setItemContentModel(_configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
-        ingester.setContext(_configuration.getProperty(Configuration.PROPERTY_CONTEXT_ID));
-        ingester.setContentCategory("ORIGINAL");
-        ingester.setInitialLifecycleStatus(PublicStatus.PENDING);
-        ingester.setVisibility("public");
-        ingester.setValidStatus("valid");
-        ingester.setMimeType("text/xml");
-
         try {
-            ingester.setForceCreate(true);
-            ingester.ingest();
-            // FIXME
+            ingest();
+            String itemId = "Unknown item id";
+            // TODO compare ingested content checksum with the provided checksum
+            // compare checksum from infrastructure with own one
+            if (isChecksumEquals()) {
+                doRenameForSuccessful(itemId);
+            }
+            else {
+                doIngestOneMoreTime();
+                // TODO what happens if it still unequals?
+            }
         }
         catch (ConfigurationException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error("The ingest is not properperly configured. " + e.getMessage(), e);
+            handleFailedIngest();
         }
         catch (IngestException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error("Fail to ingest " + e.getMessage(), e);
+            handleFailedIngest();
         }
 
-        String itemId = null;
+    }
 
+    private void handleFailedIngest() {
+        renameFileName();
+        isSessionFailed = true;
+        manager.addToFailedConfigurations(getConfigurationId());
+    }
+
+    private void renameFileName() {
+        // TODO if ingest fails, rename content file to "failed_"...
+        boolean isSuccesfull = renameFile("failed_");
+        if (isSuccesfull) {
+            // workaround because of a bug in Java1.5
+            content = new File(configDir, "failed_" + getFileName());
+        }
+        else {
+            LOG.error("A content file " + getFileName() + " could not be renamed to a 'failed_" + getFileName() + "'."
+                + " for a configuration with id " + getConfigurationId());
+        }
+    }
+
+    private String getFileName() {
+        return content.getName();
+    }
+
+    private boolean renameFile(String toPrepend) {
+        return content.renameTo(new File(configDir, toPrepend + getFileName()));
+    }
+
+    private void doRenameForSuccessful(String itemId) {
+        LOG.info("Successfully created an item with id " + itemId + " containing a file with a name " + getFileName()
+            + " for a configuration with id " + getConfigurationId() + " belonging to the experiment with id "
+            + getContainerId() + ".");
+
+        // TODO if unsuccessful item and references must be removed
+        // _contentFile.delete();
+        boolean isRenameSuccesful = content.renameTo(new File(configDir, "successful_" + getFileName()));
+        if (isRenameSuccesful) {
+            // workaround because of a bug in Java1.5
+            // TODO check if the workaround still necesassary
+            content = new File(configDir, "successful_" + getFileName());
+        }
+        else {
+            LOG.error("A content file " + getFileName() + " could not be renamed to a 'successful_" + getFileName()
+                + "'." + " for a configuration with id " + getConfigurationId());
+        }
+    }
+
+    private void doIngestOneMoreTime() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Not yet implemented");
+    }
+
+    private boolean isChecksumEquals() {
         // String createdCheckSum = ih.getChecksum();
         // String itemHref = ih.getItemHref();
         // itemId = Utility.getId(itemHref);
         // String componentHref = ih.getComponentHref();
         // String lmd = ih.getLmd();
+        // throw new UnsupportedOperationException("Not yet implemented");
+        return true;
+    }
 
-        // compare checksum from infrastructure with own one
-        // if (createdCheckSum.equals(_providedCheckSum)) {
-        // createdItemSuccessful = true;
-        // } else {
-        // // upload again and check
-        // }
+    private String getConfigurationId() {
+        String configurationId = configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
+        return configurationId;
+    }
 
-        // TODO if unsuccessful item and references must be removed
+    private void ingest() throws ConfigurationException, IngestException {
+        FileIngester ingester = buildFileIngester();
+        ingester.setForceCreate(true);
+        ingester.ingest();
+        // FIXME metadata extraction
+    }
 
-        LOG.info("Successfully created an item with id " + itemId + " containing a file with a name "
-            + _contentFile.getName() + " for a configuration with id " + configurationId
-            + " belonging to the experiment with id " + containerId + ".");
-        // _contentFile.delete();
-        String fileName = _contentFile.getName();
-        boolean success = _contentFile.renameTo(new File(_configurationDirectory, "successful_" + fileName));
-        if (!success) {
-            LOG.error("A content file " + fileName + " could not be renamed to a 'successful_" + fileName + "'."
-                + " for a configuration with id " + configurationId);
-        }
-        else {
-            // workaround because of a bug in Java1.5
-            _contentFile = new File(_configurationDirectory, "successful_" + fileName);
-        }
+    private FileIngester buildFileIngester() {
+        FileIngester ingester = new FileIngester(getBaseUri(), getUserHandle(), getContainerId());
+        ingester.addFile(contentFilePath);
+        // FIXME: container content model is not needed here.
+        ingester.setContainerContentModel(configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
+        ingester.setItemContentModel(configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
+        ingester.setContext(configuration.getProperty(Configuration.PROPERTY_CONTEXT_ID));
+        ingester.setContentCategory("ORIGINAL");
+        ingester.setInitialLifecycleStatus(PublicStatus.PENDING);
+        ingester.setVisibility("public");
+        ingester.setValidStatus("valid");
+        ingester.setMimeType("text/xml");
+        return ingester;
+    }
 
-        // TODO if failed rename content file to "failed_"...
-        // boolean success = _contentFile.renameTo(new File(
-        // _configurationDirectory, "failed_" + fileName));
-        // if (!success) {
-        // LOG.error("A content file " + fileName
-        // + " could not be renamed to a 'failed_" + fileName
-        // + "'." + " for a configuration with id "
-        // + configurationId);
-        //
-        // } else {
-        // // workaround because of a bug in Java1.5
-        // _contentFile = new File(_configurationDirectory, "failed_"
-        // + fileName);
-        // }
+    private String getUserHandle() {
+        return configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
+    }
 
-        _sessionFailed = true;
-        _manager.addToFailedConfigurations(configurationId);
+    private String getContainerId() {
+        return configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
+    }
 
+    private String getBaseUri() {
+        return configuration.getProperty(Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT);
     }
 
     /**
@@ -502,126 +535,27 @@ public class ItemSession extends Thread {
     // return get;
     // }
 
-    /**
-     * Method parses an item xml, contained in a provided input stream.
-     * 
-     * @param is
-     *            input stream
-     * @return an instance of a SAX-handler contained data, parsed from a item xml
-     * @throws DepositorException
-     */
-    private ItemHandler parseCreatedItem(InputStream is) throws DepositorException {
-        if (_saxParserFactory == null) {
-
-            _saxParserFactory = SAXParserFactory.newInstance();
-            _saxParserFactory.setValidating(false);
-            _saxParserFactory.setNamespaceAware(true);
-        }
-        SAXParser parser = null;
-        try {
-            parser = _saxParserFactory.newSAXParser();
-        }
-        catch (ParserConfigurationException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-        catch (SAXException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-
-        ItemHandler ih = new ItemHandler();
-        try {
-            parser.parse(is, ih);
-
-        }
-        catch (SAXException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-        catch (IOException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-
-        return ih;
-    }
-
-    /**
-     * Method parses a container xml, contained in a provided input stream.
-     * 
-     * @param is
-     *            input stream
-     * @return last-modification-date, parsed from a container-xml
-     * @throws DepositorException
-     */
-    private String parseContainer(InputStream is) throws DepositorException {
-        if (_saxParserFactory == null) {
-
-            _saxParserFactory = SAXParserFactory.newInstance();
-            _saxParserFactory.setValidating(false);
-            _saxParserFactory.setNamespaceAware(true);
-        }
-        SAXParser parser = null;
-        try {
-            parser = _saxParserFactory.newSAXParser();
-        }
-        catch (ParserConfigurationException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-        catch (SAXException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-
-        ContainerHandler ch = new ContainerHandler();
-        try {
-            parser.parse(is, ch);
-
-        }
-        catch (SAXException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-        catch (IOException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-            throw new DepositorException(e.getMessage(), e);
-        }
-
-        return ch.getLmd();
-    }
-
     public boolean isFinished() {
-        return !_threadWorking;
+        return !isThreadWorking;
     }
 
     public String get_providedCheckSum() {
-        return _providedCheckSum;
+        return providedCheckSum;
     }
 
     public File get_contentFile() {
-        return _contentFile;
+        return content;
     }
 
     public File get_configurationDirectory() {
-        return _configurationDirectory;
+        return configDir;
     }
 
     public boolean isSessionFailed() {
-        return _sessionFailed;
+        return isSessionFailed;
     }
 
-    public void deleteContentFile() {
-        _contentFile.delete();
+    public boolean deleteContentFile() {
+        return content.delete();
     }
-
 }

@@ -349,7 +349,6 @@ public class DepositorServlet extends HttpServlet {
     @Override
     public void doDelete(HttpServletRequest request, HttpServletResponse response) {
         LOGGER.debug("DELETE");
-        System.out.println("DELETE");
         String pathInfo = request.getPathInfo();
         String configId = pathInfo.substring(1);
         try {
@@ -412,13 +411,7 @@ public class DepositorServlet extends HttpServlet {
             this.contentFileServletUrl = "http://" + serverName + ":" + port + "/" + contextPath + "/" + servletPath;
 
             // load configuration
-            InputStream propStream = this.getClass().getResourceAsStream("/depositor.properties");
-            if (propStream == null) {
-                String message = "Error loading configuration: /depositor.properties not found in classpath";
-                throw new IOException(message);
-            }
-            Properties props = new Properties();
-            props.load(propStream);
+            Properties props = loadConfiguration();
             // create session manager that will run as thread creating
             // additional threads for all configurations
             this.manager = new SessionManager(props, this.contentFileServletUrl);
@@ -427,6 +420,26 @@ public class DepositorServlet extends HttpServlet {
             String message = "Unable to initialize DepositorServlet (" + this.contentFileServletUrl + ")";
             LOGGER.error(message, e);
             throw new ServletException(message, e);
+        }
+    }
+
+    private Properties loadConfiguration() throws IOException {
+        InputStream propStream = null;
+        try {
+            propStream = this.getClass().getResourceAsStream("/depositor.properties");
+            if (propStream == null) {
+                String message = "Error loading configuration: /depositor.properties not found in classpath";
+                throw new IOException(message);
+            }
+            Properties props = new Properties();
+            props.load(propStream);
+            return props;
+        }
+        finally {
+            if (propStream != null) {
+                propStream.close();
+            }
+
         }
     }
 
