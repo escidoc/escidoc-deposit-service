@@ -4,8 +4,8 @@
 	<entry key="ConfigurationID">chh-0013</entry>
 	<entry key="UserHandle">ESCIDOC-iQohaJ81FX1323076937047</entry>
 
-	<entry key="WorkspaceID">escidoc:2</entry>
-	<entry key="ExperimentID">escidoc:4</entry>
+	<entry key="WorkspaceID">escidoc:11556</entry>
+	<entry key="ExperimentID">escidoc:11569</entry>
 	<entry key="ContentModelID">escidoc:3</entry>
 
 	<entry key="DepositServerEndpoint">http://localhost:8080/deposit-service/depositor</entry>

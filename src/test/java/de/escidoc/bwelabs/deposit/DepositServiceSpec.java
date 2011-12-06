@@ -44,9 +44,9 @@ public class DepositServiceSpec {
     private static final String SERVICE_URL = "http://escidev4.fiz-karlsruhe.de:8080/";
 
     private static final String CONFIGURATION_DEPOSIT_URI =
-        "http://localhost:8080/deposit-service/depositor/configuration";
+        "http://localhost:8083/deposit-service/depositor/configuration";
 
-    private static final String CONTENT_DEPOSIT_URI = "http://localhost:8080/deposit-service/depositor";
+    private static final String CONTENT_DEPOSIT_URI = "http://localhost:8083/deposit-service/depositor";
 
     private static final String SYSADMIN = "sysadmin";
 
