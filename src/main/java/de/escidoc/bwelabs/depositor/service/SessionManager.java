@@ -929,8 +929,10 @@ public class SessionManager extends Thread {
      * stamp with a current time into a configuration contained in a map with configurations and in a configuration
      * file.
      * 
+     * @deprecated Monitoring start time should not be needed in configuration.
      * @param configId
      */
+    @Deprecated
     private void putMonitoringStartTimeIntoConfigurationIfMissing(String configId) {
         File configurationDirectory = new File(m_baseDir, m_configurationDirectoriesPathes.get(configId));
         Properties configuration = null;

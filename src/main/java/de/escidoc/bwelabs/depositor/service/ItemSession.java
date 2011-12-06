@@ -202,17 +202,9 @@ public class ItemSession extends Thread {
      */
     private void storeFileInToInfrastructure() {
         try {
-            ingest();
-            String itemId = "Unknown item id";
-            // TODO compare ingested content checksum with the provided checksum
-            // compare checksum from infrastructure with own one
-            if (isChecksumEquals()) {
-                doRenameForSuccessful(itemId);
-            }
-            else {
-                doIngestOneMoreTime();
-                // TODO what happens if it still unequals?
-            }
+            String itemId = ingest();
+            checkChecksum();
+            doRenameForSuccessful(itemId);
         }
         catch (ConfigurationException e) {
             LOG.error("The ingest is not properperly configured. " + e.getMessage(), e);
@@ -232,13 +224,12 @@ public class ItemSession extends Thread {
     }
 
     private void renameFileName() {
-        // TODO if ingest fails, rename content file to "failed_"...
-        boolean isSuccesfull = renameFile("failed_");
-        if (isSuccesfull) {
+        if (renameFile("failed_")) {
             // workaround because of a bug in Java1.5
             content = new File(configDir, "failed_" + getFileName());
         }
         else {
+            // FIXME and now?
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'failed_" + getFileName() + "'."
                 + " for a configuration with id " + getConfigurationId());
         }
@@ -271,19 +262,19 @@ public class ItemSession extends Thread {
         }
     }
 
-    private void doIngestOneMoreTime() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    private boolean isChecksumEquals() {
+    /**
+     * @throws IngestException
+     *             If checksum of ingested Item is not as expected.
+     */
+    private void checkChecksum() throws IngestException {
+        // TODO compare ingested content checksum with the provided checksum
+        // compare checksum from infrastructure with own one
         // String createdCheckSum = ih.getChecksum();
         // String itemHref = ih.getItemHref();
         // itemId = Utility.getId(itemHref);
         // String componentHref = ih.getComponentHref();
         // String lmd = ih.getLmd();
-        // throw new UnsupportedOperationException("Not yet implemented");
-        return true;
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     private String getConfigurationId() {
@@ -291,15 +282,12 @@ public class ItemSession extends Thread {
         return configurationId;
     }
 
-    private void ingest() throws ConfigurationException, IngestException {
+    private String ingest() throws ConfigurationException, IngestException {
         FileIngester ingester = buildFileIngester();
         ingester.setForceCreate(true);
         ingester.ingest();
-        // FIXME metadata extraction
-
-        // rename content file with prefix "successful_" because it is stored in infrastructure
-
-        // rename content file with prefix "successful_" because it is stored in infrastructure
+        // FIXME FileIngester might be changed.
+        return ingester.getItemIDs().get(0);
     }
 
     private FileIngester buildFileIngester() {
@@ -313,14 +301,15 @@ public class ItemSession extends Thread {
         ingester.setInitialLifecycleStatus(PublicStatus.PENDING);
         ingester.setVisibility("public");
         ingester.setValidStatus("valid");
-        ingester.setMimeType("text/xml");
+        ingester.setMimeType("text/plain");
         return ingester;
     }
 
     private String getUserHandle() {
         return configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
     }
-        //
+
+    //
     //
     private String getContainerId() {
         return configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
