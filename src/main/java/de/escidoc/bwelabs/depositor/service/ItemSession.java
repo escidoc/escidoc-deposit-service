@@ -34,13 +34,7 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Properties;
+import com.google.common.base.Preconditions;
 
 import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
 import org.escidoc.core.client.ingest.exceptions.IngestException;
@@ -48,7 +42,13 @@ import org.escidoc.core.client.ingest.filesystem.FileIngester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Properties;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
@@ -62,6 +62,8 @@ import de.escidoc.core.resources.common.properties.PublicStatus;
  * 
  */
 public class ItemSession extends Thread {
+
+    private static final String PREFIX_FAILED = "failed_";
 
     private static final Logger LOG = LoggerFactory.getLogger(ItemSession.class.getName());
 
@@ -92,28 +94,24 @@ public class ItemSession extends Thread {
 
         this.manager = manager;
         this.configuration = configuration;
-        // contentFile is created from configurationDirectory and a filename, so
-        // configurationDirectory is not needed to reconstruct the path
-        // configurationDirectory.getName() + "/" + contentFile.getName();
         this.content = content;
         this.contentFilePath = content.getPath();
         this.configDir = configDir;
 
         assignCheckSum(configuration, content, providedCheckSum);
-        // _configurationId = configId;
         createUniqueKey();
-        isThreadWorking = true;
 
+        isThreadWorking = true;
         setName("Session-" + sessionKey + "-Retriever");
     }
 
     private void createUniqueKey() {
-        String s = "" + this.hashCode();
-        if (s.startsWith("-")) {
-            sessionKey = "Z" + s.substring(1);
+        String baseKey = "" + this.hashCode();
+        if (baseKey.startsWith("-")) {
+            sessionKey = "Z" + baseKey.substring(1);
         }
         else {
-            sessionKey = "X" + s;
+            sessionKey = "X" + baseKey;
         }
     }
 
@@ -214,22 +212,20 @@ public class ItemSession extends Thread {
             LOG.error("Fail to ingest " + e.getMessage(), e);
             handleFailedIngest();
         }
-
     }
 
     private void handleFailedIngest() {
-        renameFileName();
+        renameFileName(PREFIX_FAILED);
         isSessionFailed = true;
         manager.addToFailedConfigurations(getConfigurationId());
     }
 
-    private void renameFileName() {
-        if (renameFile("failed_")) {
-            // workaround because of a bug in Java1.5
-            content = new File(configDir, "failed_" + getFileName());
+    private void renameFileName(String prefix) {
+        boolean isSuccesfull = renameFile(prefix);
+        if (isSuccesfull) {
+            content = new File(configDir, prefix + getFileName());
         }
         else {
-            // FIXME and now?
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'failed_" + getFileName() + "'."
                 + " for a configuration with id " + getConfigurationId());
         }
@@ -250,11 +246,12 @@ public class ItemSession extends Thread {
 
         // TODO if unsuccessful item and references must be removed
         // _contentFile.delete();
-        boolean isRenameSuccesful = content.renameTo(new File(configDir, "successful_" + getFileName()));
+        File renamedFile = new File(configDir, "successful_" + getFileName());
+        boolean isRenameSuccesful = content.renameTo(renamedFile);
         if (isRenameSuccesful) {
             // workaround because of a bug in Java1.5
             // TODO check if the workaround still necesassary
-            content = new File(configDir, "successful_" + getFileName());
+            content = renamedFile;
         }
         else {
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'successful_" + getFileName()
@@ -309,8 +306,6 @@ public class ItemSession extends Thread {
         return configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
     }
 
-    //
-    //
     private String getContainerId() {
         return configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
     }
