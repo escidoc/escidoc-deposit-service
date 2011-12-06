@@ -298,6 +298,8 @@ public class ItemSession extends Thread {
         // FIXME metadata extraction
 
         // rename content file with prefix "successful_" because it is stored in infrastructure
+
+        // rename content file with prefix "successful_" because it is stored in infrastructure
     }
 
     private FileIngester buildFileIngester() {
@@ -318,7 +320,7 @@ public class ItemSession extends Thread {
     private String getUserHandle() {
         return configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
     }
-
+        //
     //
     private String getContainerId() {
         return configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
