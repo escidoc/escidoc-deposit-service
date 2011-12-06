@@ -46,6 +46,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
+import org.escidoc.core.client.ingest.exceptions.IngestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,12 +125,30 @@ public class DepositorServlet extends HttpServlet {
             configProperties.loadFromXML(is);
             configProperties.isValid();
             String configId = configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
+
+            // TODO Manager only has to now about successful configuration. Saving and ingest might be in another class.
             manager.checkIfAlreadyExists(configId);
-
             File configFile = manager.saveInLocalFileSystem(configProperties);
-
-            manager.ingestConfiguration(configProperties, configFile);
-
+            try {
+                manager.ingestConfiguration(configProperties, configFile);
+            }
+            catch (Exception e) {
+                boolean success = false;
+                File configDir = configFile.getParentFile();
+                success = configFile.delete();
+                if (success) {
+                    success = configDir.delete();
+                }
+                if (!success) {
+                    LOGGER.error("Could not remove config on error: " + configFile.getPath() + ".");
+                }
+                if (e instanceof ConfigurationException) {
+                    throw (ConfigurationException) e;
+                }
+                else {
+                    throw (IngestException) e;
+                }
+            }
             manager.registerConfiguration(configProperties);
 
             LOGGER.info("Successfully saved configuration: " + configId + " in " + configFile.getPath() + ".");
@@ -157,6 +177,12 @@ public class DepositorServlet extends HttpServlet {
         // }
         catch (IOException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+        catch (ConfigurationException e) {
+            response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
+        }
+        catch (IngestException e) {
+            response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
         }
     }
 

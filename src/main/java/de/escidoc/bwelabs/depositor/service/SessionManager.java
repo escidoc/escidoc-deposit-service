@@ -526,28 +526,15 @@ public class SessionManager extends Thread {
         throw new UnsupportedOperationException("everything moved");
     }
 
-    public void ingestConfiguration(Configuration configProperties, File configFile) throws DepositorException {
+    public void ingestConfiguration(Configuration configProperties, File configFile) throws ConfigurationException,
+        IngestException {
         FileIngester ingester =
             buildFileIngester(configProperties, configFile, m_configurationDirectoriesPathes.get(configProperties
                 .getProperty(Configuration.PROPERTY_CONFIGURATION_ID)));
-        try {
-            LOG.debug("ingesting configuration");
-            ingester.setForceCreate(true);
-            ingester.ingest();
-            // FIXME
-        }
-        catch (ConfigurationException e) {
-            LOG.debug("Error occured while ", e);
-            throw new DepositorException(e);
-        }
-        catch (IngestException e) {
-            LOG.debug("ups", e);
-            throw new DepositorException(e);
-        }
-        catch (Throwable e) {
-            LOG.debug("ups", e);
 
-        }
+        LOG.debug("ingesting configuration");
+        ingester.setForceCreate(true);
+        ingester.ingest();
     }
 
     private FileIngester buildFileIngester(Configuration configProperties, File configFile, String configDirName) {
@@ -586,8 +573,7 @@ public class SessionManager extends Thread {
         if (m_configurations.containsKey(configurationId)
             || m_expiredSuccessfulConfigurations.containsKey(configurationId)
             || m_failedExpired_configurationDirectories.containsKey(configurationId)) {
-            String message =
-                "The configuration with id " + configurationId + " is already registered by a Deposit service.";
+            String message = "Configuration " + configurationId + " already exists.";
             LOG.error(message);
             throw new AlreadyExistException(message);
         }
