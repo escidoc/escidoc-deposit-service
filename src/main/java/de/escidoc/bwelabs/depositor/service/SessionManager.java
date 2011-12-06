@@ -51,6 +51,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 
+import javax.help.UnsupportedOperationException;
+
 import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
 import org.escidoc.core.client.ingest.exceptions.IngestException;
 import org.escidoc.core.client.ingest.filesystem.FileIngester;
@@ -68,8 +70,6 @@ import de.escidoc.bwelabs.depositor.error.ApplicationException;
 import de.escidoc.bwelabs.depositor.error.ConnectionException;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
 import de.escidoc.bwelabs.depositor.error.InfrastructureException;
-import de.escidoc.bwelabs.depositor.error.MissingConfigurationPropertyException;
-import de.escidoc.bwelabs.depositor.error.WrongFormatException;
 import de.escidoc.bwelabs.depositor.utility.EscidocUtility;
 import de.escidoc.bwelabs.depositor.utility.Utility;
 import de.escidoc.core.resources.common.properties.PublicStatus;
@@ -512,60 +512,24 @@ public class SessionManager extends Thread {
     /**
      * Method checks if a limit of threads on Depositor is exceeded and calls a method to check a provided stream with a
      * configuration.
-     */
-    public void storeConfiguration(InputStream configurationStream) throws ApplicationException, DepositorException,
-        ConnectionException, InfrastructureException {
-        if (m_threadNumber == m_maxThreadNumber) {
-            LOG.error(ERR_MAX_THREADS_);
-            throw new DepositorException(ERR_MAX_THREADS_);
-        }
-
-        LOG.debug("Checking configuration");
-        checkConfiguration(configurationStream);
-    }
-
-    /**
+     * 
+     * 
      * Method reads a configuration from a provided input stream. It checks if all mandatory configuration properties
      * are present and have valid values. It creates a directory for the configuration inside a base directory, save a
      * configuration file Constants.CONFIGURATION_FILE_NAME into this configuration directory and store a configuration
      * as an item in to an infrastructure with the infrastructure end point contained in the configuration.
      * 
-     * @param configurationStream
-     *            input stream containing a configuration
      * 
-     * @throws DepositorException
-     *             internal depositor error
-     * @throws InfrastructureException
-     *             internal infrastructure error
-     * @throws ConnectionException
-     *             if connection to the infrastructure failed
-     * @throws ApplicationException
-     *             if one of a configuration properties is missing or has invalid value
      */
-    private void checkConfiguration(InputStream configurationStream) throws InfrastructureException,
-        DepositorException, ConnectionException, ApplicationException {
-
-        Configuration configProperties = buildConfiguration(configurationStream);
-
-        checkIfAlreadyExists(getConfigurationId(configProperties));
-
-        File configFile = saveInLocalFileSystem(configProperties, getConfigurationId(configProperties));
-
-        ingestConfiguration(configProperties, configFile);
-
-        synchronized (m_configurations) {
-            LOG.info("Successful saved a configuration with the id " + getConfigurationId(configProperties)
-                + " in the directory " + m_baseDir + "/"
-                + m_configurationDirectoriesPathes.get(getConfigurationId(configProperties)));
-            m_configurations.put(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID),
-                configProperties);
-        }
+    public void storeConfiguration(Configuration configProperties) throws ApplicationException, DepositorException,
+        ConnectionException, InfrastructureException {
+        throw new UnsupportedOperationException("everything moved");
     }
 
-    private void ingestConfiguration(Configuration configProperties, File configFile) throws DepositorException {
+    public void ingestConfiguration(Configuration configProperties, File configFile) throws DepositorException {
         FileIngester ingester =
-            buildFileIngester(configProperties, configFile,
-                m_configurationDirectoriesPathes.get(getConfigurationId(configProperties)));
+            buildFileIngester(configProperties, configFile, m_configurationDirectoriesPathes.get(configProperties
+                .getProperty(Configuration.PROPERTY_CONFIGURATION_ID)));
         try {
             LOG.debug("ingesting configuration");
             ingester.setForceCreate(true);
@@ -584,42 +548,6 @@ public class SessionManager extends Thread {
             LOG.debug("ups", e);
 
         }
-    }
-
-    private String getConfigurationId(Configuration configProperties) {
-        String configurationId = configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
-        LOG.debug("Configuration ID: " + configurationId);
-        return configurationId;
-    }
-
-    private Configuration buildConfiguration(InputStream configurationStream)
-        throws MissingConfigurationPropertyException, WrongFormatException, DepositorException {
-        Configuration configProperties;
-        try {
-            configProperties = new Configuration();
-            configProperties.loadFromXML(configurationStream);
-
-            if (configProperties.isValid()) {
-                LOG.debug("Config is valid.");
-            }
-            else {
-                LOG.debug("Config is invalid.");
-            }
-
-        }
-        catch (InvalidPropertiesFormatException e) {
-            LOG.error(e.getMessage());
-            throw new WrongFormatException(e.getMessage(), e);
-        }
-        catch (IOException e) {
-            LOG.error(e.getMessage());
-            throw new DepositorException(e.getMessage(), e);
-        }
-        catch (NoSuchAlgorithmException e) {
-            LOG.error(e.getMessage());
-            throw new DepositorException(e.getMessage(), e);
-        }
-        return configProperties;
     }
 
     private FileIngester buildFileIngester(Configuration configProperties, File configFile, String configDirName) {
@@ -647,7 +575,14 @@ public class SessionManager extends Thread {
         return ingester;
     }
 
-    private void checkIfAlreadyExists(String configurationId) throws AlreadyExistException {
+    public void registerConfiguration(Configuration configProperties) {
+        synchronized (m_configurations) {
+            m_configurations.put(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID),
+                configProperties);
+        }
+    }
+
+    public void checkIfAlreadyExists(String configurationId) throws AlreadyExistException {
         if (m_configurations.containsKey(configurationId)
             || m_expiredSuccessfulConfigurations.containsKey(configurationId)
             || m_failedExpired_configurationDirectories.containsKey(configurationId)) {
@@ -681,7 +616,7 @@ public class SessionManager extends Thread {
      * @return File with a created configuration directory.
      * @throws DepositorException
      */
-    private File saveInLocalFileSystem(Properties configuration, String configurationId) throws DepositorException {
+    public File saveInLocalFileSystem(Properties configuration) throws DepositorException {
 
         LOG.debug("saving configuration in local file system");
         DateTimeZone.setDefault(DateTimeZone.UTC);
@@ -704,7 +639,8 @@ public class SessionManager extends Thread {
             os.flush();
             os.close();
             synchronized (m_configurationDirectoriesPathes) {
-                m_configurationDirectoriesPathes.put(configurationId, configurationDirectoryName);
+                m_configurationDirectoriesPathes.put(
+                    configuration.getProperty(Configuration.PROPERTY_CONFIGURATION_ID), configurationDirectoryName);
             }
 
         }

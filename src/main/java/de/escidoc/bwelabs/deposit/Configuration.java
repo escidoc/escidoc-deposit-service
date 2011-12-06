@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.escidoc.bwelabs.depositor.error.MissingConfigurationPropertyException;
+import de.escidoc.bwelabs.depositor.error.WrongConfigurationContentException;
 import de.escidoc.bwelabs.depositor.service.Constants;
 
 @SuppressWarnings("serial")
@@ -72,8 +73,7 @@ public class Configuration extends Properties {
 
     private boolean isValid;
 
-    public boolean isValid() throws MissingConfigurationPropertyException, MalformedURLException,
-        NoSuchAlgorithmException {
+    public boolean isValid() throws WrongConfigurationContentException {
         // be optimistic
         this.isValid = true;
 
@@ -87,15 +87,6 @@ public class Configuration extends Properties {
             String message = Constants.PROPERTY_EXPERIMENT_ID + " is missing.";
             LOG.error(message);
             this.isValid = false;
-        }
-
-        if (isNullOrEmpty(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT))) {
-            String message = Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT + " is missing.";
-            LOG.error(message);
-            this.isValid = false;
-        }
-        else {
-            new URL(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT));
         }
 
         if (isNullOrEmpty(this.getProperty(PROPERTY_USER_HANDLE))) {
@@ -146,13 +137,30 @@ public class Configuration extends Properties {
             // }
         }
 
-        if (isNullOrEmpty(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM))) {
-            String message = Constants.PROPERTY_CHECKSUM_ALGORITHM + " is missing.";
-            LOG.error(message);
-            this.isValid = false;
+        try {
+            if (isNullOrEmpty(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT))) {
+                String message = Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT + " is missing.";
+                LOG.error(message);
+                this.isValid = false;
+            }
+            else {
+                new URL(this.getProperty(PROPERTY_INFRASTRUCTURE_ENDPOINT));
+            }
+
+            if (isNullOrEmpty(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM))) {
+                String message = Constants.PROPERTY_CHECKSUM_ALGORITHM + " is missing.";
+                LOG.error(message);
+                this.isValid = false;
+            }
+            else {
+                MessageDigest.getInstance(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM));
+            }
         }
-        else {
-            MessageDigest.getInstance(this.getProperty(PROPERTY_CHECKSUM_ALGORITHM));
+        catch (MalformedURLException e) {
+            throw new WrongConfigurationContentException("Infrastructure endpoint is no valid URL.", e);
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new WrongConfigurationContentException("Unknown checksum algorithm.", e);
         }
 
         if (!this.isValid) {

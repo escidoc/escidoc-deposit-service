@@ -34,8 +34,10 @@
  */
 package de.escidoc.bwelabs.depositor.service;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.InvalidPropertiesFormatException;
 import java.util.Properties;
 
 import javax.servlet.ServletException;
@@ -47,13 +49,12 @@ import javax.xml.parsers.SAXParserFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.AlreadyExistException;
 import de.escidoc.bwelabs.depositor.error.AlreadyExpiredException;
 import de.escidoc.bwelabs.depositor.error.ApplicationException;
-import de.escidoc.bwelabs.depositor.error.ConnectionException;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
-import de.escidoc.bwelabs.depositor.error.InfrastructureException;
-import de.escidoc.bwelabs.depositor.error.WrongFormatException;
+import de.escidoc.bwelabs.depositor.error.WrongConfigurationContentException;
 
 /**
  * Handles requests to Depositor service.
@@ -106,90 +107,56 @@ public class DepositorServlet extends HttpServlet {
      * the body of the request.
      */
     @Override
-    public void doPut(final HttpServletRequest request, final HttpServletResponse response) {
-        LOGGER.debug("PUT");
+    public void doPut(final HttpServletRequest request, final HttpServletResponse response) throws IOException {
         String pathInfo = request.getPathInfo();
-        InputStream is = readInputStream(request, response);
-        LOGGER.debug("pathInfo: " + pathInfo);
-        if (PATH_FOR_SENDING_NEW_CONFIGURATION.equals(pathInfo)) {
-            if (is == null) {
-                String message = "Configuration stream is null";
-                LOGGER.error(message);
-                try {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, message);
-                }
-                catch (IOException ioe) {
-                    LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                }
-            }
-            else {
-                try {
-                    manager.increaseThreadsNumber();
-                    manager.storeConfiguration(is);
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setContentType("text/xml");
-                    response.flushBuffer();
-                }
-                catch (ApplicationException e) {
-                    if (e instanceof WrongFormatException) {
-                        try {
-                            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-                        }
-                        catch (IOException ioe) {
-                            LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                        }
-                    }
-                    else {
-                        try {
-                            response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
-                        }
-                        catch (IOException ioe) {
-                            LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                        }
-                    }
-                }
-                catch (DepositorException e) {
-                    sendDepositError(response, e);
-                }
-                catch (InfrastructureException e) {
-                    try {
-                        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
-                }
-                catch (ConnectionException e) {
-                    try {
-                        response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
-                }
-                catch (Throwable e) {
-                    try {
-                        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-                        LOGGER.error("ups", e);
-                    }
-                    catch (IOException ioe) {
-                        LOGGER.warn("Could not send error to eSyncDemon", ioe);
-                    }
-                }
-                finally {
-                    cleanUp(is);
-                }
-            }
+        LOGGER.debug("PUT " + pathInfo);
 
+        if (!PATH_FOR_SENDING_NEW_CONFIGURATION.equals(pathInfo)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "A PUT-requst to path info: " + pathInfo
+                + " is not suported.");
         }
-        else {
-            try {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "A PUT-requst to path info: " + pathInfo
-                    + " is not suported.");
-            }
-            catch (IOException ioe) {
-                LOGGER.warn("Could not send error to eSyncDemon", ioe);
-            }
+
+        try {
+
+            InputStream is = getRequestInputStream(request, response);
+            Configuration configProperties = new Configuration();
+            configProperties.loadFromXML(is);
+            configProperties.isValid();
+            String configId = configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
+            manager.checkIfAlreadyExists(configId);
+
+            File configFile = manager.saveInLocalFileSystem(configProperties);
+
+            manager.ingestConfiguration(configProperties, configFile);
+
+            manager.registerConfiguration(configProperties);
+
+            LOGGER.info("Successfully saved configuration: " + configId + " in " + configFile.getPath() + ".");
+
+            // FIXME respond without content
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("text/xml");
+            response.flushBuffer();
+        }
+        catch (InvalidPropertiesFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getClass().getName() + ": " + e.getMessage());
+        }
+        catch (WrongConfigurationContentException e) {
+            response.sendError(HttpServletResponse.SC_CONFLICT, e.getClass().getName() + ": " + e.getMessage());
+        }
+        catch (AlreadyExistException e) {
+            response.sendError(HttpServletResponse.SC_CONFLICT, e.getClass().getName() + ": " + e.getMessage());
+        }
+        catch (DepositorException e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                e.getClass().getName() + ": " + e.getMessage());
+        }
+        // TODO needed to inform eSyncDaemon about no connection to infrastructure?
+        // catch (ConnectionException e) {
+        // response.sendError(HttpServletResponse.SC_CONFLICT, e.getMessage());
+        // }
+        catch (IOException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
     }
 
@@ -198,7 +165,7 @@ public class DepositorServlet extends HttpServlet {
      * into an infrastructure.
      */
     @Override
-    public void doPost(HttpServletRequest request, HttpServletResponse response) {
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         // FIXME Preconditions are:
         // http://{host:port}/deposit-service/depositor/{configId}
@@ -210,13 +177,8 @@ public class DepositorServlet extends HttpServlet {
         // String fileName = request.getHeader(CONTENT_DISPOSITION);
 
         LOGGER.debug("POST");
-        InputStream is = readInputStream(request, response);
-        if (is == null) {
-            sendError(response);
-        }
-        else {
-            checkSum(request, response, is);
-        }
+        InputStream is = getRequestInputStream(request, response);
+        checkSum(request, response, is);
     }
 
     private static void sendError(HttpServletResponse response) {
@@ -230,21 +192,17 @@ public class DepositorServlet extends HttpServlet {
         }
     }
 
-    private static InputStream readInputStream(HttpServletRequest request, HttpServletResponse response) {
-        try {
-            return request.getInputStream();
+    private static InputStream getRequestInputStream(HttpServletRequest request, HttpServletResponse response)
+        throws IOException {
+        InputStream is = null;
+        is = request.getInputStream();
+        if (is == null) {
+            // FIXME method states to return an object; not "or null"!
+            String message = "Configuration stream is null";
+            LOGGER.error(message);
+            throw new IOException(message);
         }
-        catch (IOException e) {
-            String message = "Error reading input stream from request";
-            LOGGER.error(message + e.getMessage());
-            try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message + e.getMessage());
-            }
-            catch (IOException ioe) {
-                LOGGER.warn("Could not send error to eSyncDemon", ioe);
-            }
-        }
-        return null;
+        return is;
     }
 
     private void checkSum(HttpServletRequest request, HttpServletResponse response, InputStream is) {
