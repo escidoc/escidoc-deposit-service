@@ -42,8 +42,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
 
-import javax.xml.parsers.SAXParserFactory;
-
 import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
 import org.escidoc.core.client.ingest.exceptions.IngestException;
 import org.escidoc.core.client.ingest.filesystem.FileIngester;
@@ -65,9 +63,9 @@ import de.escidoc.core.resources.common.properties.PublicStatus;
  */
 public class ItemSession extends Thread {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ItemSession.class.getName());
+    private static final String PREFIX_FAILED = "failed_";
 
-    private static SAXParserFactory _saxParserFactory;
+    private static final Logger LOG = LoggerFactory.getLogger(ItemSession.class.getName());
 
     private SessionManager manager;
 
@@ -96,28 +94,24 @@ public class ItemSession extends Thread {
 
         this.manager = manager;
         this.configuration = configuration;
-        // contentFile is created from configurationDirectory and a filename, so
-        // configurationDirectory is not needed to reconstruct the path
-        // configurationDirectory.getName() + "/" + contentFile.getName();
         this.content = content;
         this.contentFilePath = content.getPath();
         this.configDir = configDir;
 
         assignCheckSum(configuration, content, providedCheckSum);
-        // _configurationId = configId;
         createUniqueKey();
-        isThreadWorking = true;
 
+        isThreadWorking = true;
         setName("Session-" + sessionKey + "-Retriever");
     }
 
     private void createUniqueKey() {
-        String s = "" + this.hashCode();
-        if (s.startsWith("-")) {
-            sessionKey = "Z" + s.substring(1);
+        String baseKey = "" + this.hashCode();
+        if (baseKey.startsWith("-")) {
+            sessionKey = "Z" + baseKey.substring(1);
         }
         else {
-            sessionKey = "X" + s;
+            sessionKey = "X" + baseKey;
         }
     }
 
@@ -226,21 +220,18 @@ public class ItemSession extends Thread {
             LOG.error("Fail to ingest " + e.getMessage(), e);
             handleFailedIngest();
         }
-
     }
 
     private void handleFailedIngest() {
-        renameFileName();
+        renameFileName(PREFIX_FAILED);
         isSessionFailed = true;
         manager.addToFailedConfigurations(getConfigurationId());
     }
 
-    private void renameFileName() {
-        // TODO if ingest fails, rename content file to "failed_"...
-        boolean isSuccesfull = renameFile("failed_");
+    private void renameFileName(String prefix) {
+        boolean isSuccesfull = renameFile(prefix);
         if (isSuccesfull) {
-            // workaround because of a bug in Java1.5
-            content = new File(configDir, "failed_" + getFileName());
+            content = new File(configDir, prefix + getFileName());
         }
         else {
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'failed_" + getFileName() + "'."
@@ -263,11 +254,12 @@ public class ItemSession extends Thread {
 
         // TODO if unsuccessful item and references must be removed
         // _contentFile.delete();
-        boolean isRenameSuccesful = content.renameTo(new File(configDir, "successful_" + getFileName()));
+        File renamedFile = new File(configDir, "successful_" + getFileName());
+        boolean isRenameSuccesful = content.renameTo(renamedFile);
         if (isRenameSuccesful) {
             // workaround because of a bug in Java1.5
             // TODO check if the workaround still necesassary
-            content = new File(configDir, "successful_" + getFileName());
+            content = renamedFile;
         }
         else {
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'successful_" + getFileName()

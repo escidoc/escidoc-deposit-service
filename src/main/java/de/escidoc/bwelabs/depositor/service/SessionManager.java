@@ -279,15 +279,11 @@ public class SessionManager extends Thread {
      */
     void processContentFiles(final File directoryToProcess, final String configId) {
         File[] files = directoryToProcess.listFiles();
-        for (int j = 0; j < files.length; j++) {
-            if (!(files[j].getName().equals(Constants.CONFIGURATION_FILE_NAME) || files[j].getName().startsWith(
-                "successful_"))) {
-                ItemSession session = null;
+        for (int fileIndex = 0; fileIndex < files.length; fileIndex++) {
+            if (!(files[fileIndex].getName().equals(Constants.CONFIGURATION_FILE_NAME) || files[fileIndex]
+                .getName().startsWith("successful_"))) {
                 try {
-                    // storing a content file into
-                    // infrastructure
-                    session = new ItemSession(this, m_configurations.get(configId), files[j], directoryToProcess, null);
-                    session.start();
+                    storeContentToInfrastructure(directoryToProcess, configId, files, fileIndex);
                 }
                 catch (DepositorException e) {
                     // FIXME give a message
@@ -296,6 +292,11 @@ public class SessionManager extends Thread {
                 }
             }
         }
+    }
+
+    private void storeContentToInfrastructure(final File directoryToProcess, final String configId, File[] files, int j)
+        throws DepositorException {
+        new ItemSession(this, m_configurations.get(configId), files[j], directoryToProcess, null).start();
     }
 
     // ////////////////////////////////////////////////////////////////////////
@@ -772,14 +773,14 @@ public class SessionManager extends Thread {
      * 
      * @param configId
      * @param checkSumValue
-     * @param in
+     * @param is
      * @param fileName
      * @return true - if a check sum is valid, false - otherwise
      * @throws ApplicationException
      * @throws DepositorException
      */
     public boolean refactorNameOfThisMethod(
-        final String configId, final String checkSumValue, final InputStream in, final String fileName)
+        final String configId, final String checkSumValue, final InputStream is, final String fileName)
         throws ApplicationException, DepositorException {
 
         checkPreconditions(configId);
@@ -787,8 +788,36 @@ public class SessionManager extends Thread {
         checkIfExists(configId, configurationDirectory);
         checkFileName(configId, fileName, configurationDirectory);
         putMonitoringStartTimeIntoConfigurationIfMissing(configId);
-        return compareChecksum(configId, checkSumValue, configurationDirectory, new File(configurationDirectory,
-            fileName), storeFileAndCalculateChecksum(configId, in, new File(configurationDirectory, fileName)));
+
+        File content = new File(configurationDirectory, fileName);
+        MessageDigest digest = storeFileAndCalculateChecksum(configId, is, content);
+        if (isCheckSumEquals(digest, checkSumValue)) {
+            ingestFileAsync(configId, checkSumValue, configurationDirectory, content);
+            return true;
+        }
+
+        content.delete();
+        return false;
+    }
+
+    private void ingestFileAsync(
+        final String configId, final String checkSumValue, File configurationDirectory, File content)
+        throws DepositorException {
+        // now, content from the request is stored and validated.
+        // create a session and start it. The session computed all additional
+        // information and stores the content as component content in an item in
+        // the eSciDoc Infrastructure.
+        new ItemSession(this, m_configurations.get(configId), content, configurationDirectory, checkSumValue).start();
+    }
+
+    private boolean isCheckSumEquals(MessageDigest md, String checkSumValue) {
+
+        // compare computed digest with the one send with the request
+        byte[] digest = md.digest();
+        String checksum = Utility.byteArraytoHexString(digest);
+        LOG.debug("checksum[" + checksum + "]");
+
+        return checksum.equals(checkSumValue);
     }
 
     private static void checkIfExists(final String configId, File configurationDirectory) throws DepositorException {
@@ -828,29 +857,6 @@ public class SessionManager extends Thread {
             throw new DepositorException(e.getMessage());
         }
         return md;
-    }
-
-    private boolean compareChecksum(
-        final String configId, final String checkSumValue, File configurationDirectory, File contentFile,
-        MessageDigest md) throws DepositorException {
-
-        // compare computed digest with the one send with the request
-        byte[] digest = md.digest();
-        String checksum = Utility.byteArraytoHexString(digest);
-        LOG.debug("checksum[" + checksum + "]");
-
-        // now, content from the request is stored and validated.
-        // create a session and start it. The session computed all additional
-        // information and stores the content as component content in an item in
-        // the eSciDoc Infrastructure.
-        if (checksum.equals(checkSumValue)) {
-            new ItemSession(this, m_configurations.get(configId), contentFile, configurationDirectory, checksum)
-                .start();
-            return true;
-        }
-
-        contentFile.delete();
-        return false;
     }
 
     private MessageDigest getMessageDigest(final String configId) throws DepositorException {
