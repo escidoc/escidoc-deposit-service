@@ -396,7 +396,7 @@ public class DepositorServlet extends HttpServlet {
             Properties props = loadConfiguration();
             // create session manager that will run as thread creating
             // additional threads for all configurations
-            this.manager = new SessionManager(props, this.contentFileServletUrl);
+            this.manager = new SessionManager(props);
         }
         catch (Exception e) {
             String message = "Unable to initialize DepositorServlet (" + this.contentFileServletUrl + ")";

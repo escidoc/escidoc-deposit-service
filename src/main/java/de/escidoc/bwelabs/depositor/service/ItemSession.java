@@ -74,8 +74,6 @@ public class ItemSession extends Thread {
 
     private String providedCheckSum;
 
-    private String contentFilePath;
-
     private File content;
 
     private File configDir;
@@ -100,7 +98,6 @@ public class ItemSession extends Thread {
         this.manager = manager;
         this.configuration = configuration;
         this.content = content;
-        this.contentFilePath = content.getPath();
         this.configDir = configDir;
 
         assignCheckSum(configuration, content, providedCheckSum);

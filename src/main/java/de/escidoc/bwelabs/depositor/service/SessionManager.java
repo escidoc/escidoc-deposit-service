@@ -42,7 +42,6 @@ import java.util.InvalidPropertiesFormatException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.Vector;
 
 import javax.help.UnsupportedOperationException;
@@ -56,6 +55,8 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.AlreadyExistException;
@@ -86,60 +87,64 @@ public class SessionManager extends Thread {
     public static final String ERR_MAX_THREADS_ =
         "The depositor service is unavalible. The maximal number of threads is reached. Please try later.";
 
-    private File m_baseDir;
-
-    private int m_maxThreadNumber;
-
-    private int m_threadNumber;
-
-    private int m_pingInterval;
-
-    private HashMap<String, Properties> m_configurations;
-
-    private HashMap<String, String> m_configurationDirectoriesPathes;
-
-    private HashMap<String, Properties> m_failedConfigurations;
-
-    private HashMap<String, Properties> m_expiredSuccessfulConfigurations;
-
-    private Map<String, Vector<ItemSession>> m_sessions;
-
-    private Map<String, String> m_failedExpired_configurationDirectories;
-
-    private Vector<String> m_expiredConfigurationsSinceLastRun;
-
-    private Map<String, File> m_dirsFromLastRunToProcess;
-
-    private Vector<String> m_isCleaning;
-
-    private boolean m_threadNeedsToFinish;
-
-    private boolean m_threadFinished;
-
-    private String m_contentFileServletUrl;
-
     private static final String DATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 
     private static final String PATH_FORMAT = "yyyy_MM_dd_HH_mm_ss_SSS";
 
-    public SessionManager(Properties props, String contentFileServletUrl) throws DepositorException {
-        m_threadNumber = 0;
-        String dir = props.getProperty(PROP_BASEDIR);
-        if (dir == null) {
+    private File baseDir;
+
+    private int maxThreadNumber;
+
+    private int threadNumber;
+
+    private int pingInterval;
+
+    private Map<String, Properties> configurations;
+
+    private Map<String, String> configurationDirPathes;
+
+    private Map<String, Properties> failedConfigurations;
+
+    private Map<String, Properties> expiredSuccessfulConfigurations;
+
+    private Map<String, Vector<ItemSession>> sessions;
+
+    private Map<String, String> failedExpiredConfDir;
+
+    private Vector<String> expiredConfigurationsSinceLastRun;
+
+    private Map<String, File> dirsFromLastRunToProcess;
+
+    private Vector<String> isCleaning;
+
+    private boolean isThreadNeedsToFinish;
+
+    private boolean isThreadFinished;
+
+    public SessionManager(Properties props) throws DepositorException {
+        Preconditions.checkNotNull(props, "props is null: %s", props);
+
+        threadNumber = 0;
+        int threadNumber = loadConfigurationAndGetThreadNumber(props);
+
+        init(new File(props.getProperty(PROP_BASEDIR)), threadNumber);
+    }
+
+    private int loadConfigurationAndGetThreadNumber(Properties props) throws DepositorException {
+        if (props.getProperty(PROP_BASEDIR) == null) {
             String message = "Required property missing: " + PROP_BASEDIR;
             LOG.error(message);
             throw new DepositorException(message);
         }
 
-        String threads = props.getProperty(PROP_MAX_THREAD_NUMBER);
-        if (threads == null) {
+        if (props.getProperty(PROP_MAX_THREAD_NUMBER) == null) {
             String message = "Required property missing: " + PROP_MAX_THREAD_NUMBER;
             LOG.error(message);
             throw new DepositorException(message);
         }
         int threadNumber;
         try {
-            threadNumber = Integer.parseInt(threads);
+            threadNumber = Integer.parseInt(props.getProperty(PROP_MAX_THREAD_NUMBER));
         }
         catch (Exception e) {
             String message = "Required property must an integer: " + PROP_MAX_THREAD_NUMBER;
@@ -147,45 +152,44 @@ public class SessionManager extends Thread {
             throw new DepositorException(message);
         }
 
-        String propertyPingInterval = props.getProperty(PROP_PING_INTERVAL);
-        if (propertyPingInterval == null) {
+        if (props.getProperty(PROP_PING_INTERVAL) == null) {
             String message = "Required property missing: " + PROP_PING_INTERVAL;
             LOG.error(message);
             throw new DepositorException(message);
         }
 
         try {
-            int pingInterval = Integer.parseInt(propertyPingInterval);
-            m_pingInterval = pingInterval;
+            this.pingInterval = Integer.parseInt(props.getProperty(PROP_PING_INTERVAL));
         }
         catch (Exception e) {
             String message = "Required property must an integer: " + PROP_PING_INTERVAL;
             LOG.error(message);
             throw new DepositorException(message);
         }
-
-        m_contentFileServletUrl = contentFileServletUrl;
-        init(new File(dir), threadNumber);
+        return threadNumber;
     }
 
     private void init(File baseDir, int maxThreadNumber) throws DepositorException {
-        m_dirsFromLastRunToProcess = new HashMap<String, File>();
-        m_sessions = new HashMap<String, Vector<ItemSession>>();
-        m_failedExpired_configurationDirectories = new HashMap<String, String>();
-        m_configurations = new HashMap<String, Properties>();
-        m_failedConfigurations = new HashMap<String, Properties>();
-        m_expiredSuccessfulConfigurations = new HashMap<String, Properties>();
-        m_configurationDirectoriesPathes = new HashMap<String, String>();
-        m_isCleaning = new Vector<String>();
-        m_baseDir = baseDir;
-        m_expiredConfigurationsSinceLastRun = new Vector<String>();
-        if (!m_baseDir.exists()) {
-            m_baseDir.mkdirs();
+
+        dirsFromLastRunToProcess = new HashMap<String, File>();
+        sessions = new HashMap<String, Vector<ItemSession>>();
+        failedExpiredConfDir = new HashMap<String, String>();
+        configurations = new HashMap<String, Properties>();
+        failedConfigurations = new HashMap<String, Properties>();
+        expiredSuccessfulConfigurations = new HashMap<String, Properties>();
+        configurationDirPathes = new HashMap<String, String>();
+        isCleaning = new Vector<String>();
+        expiredConfigurationsSinceLastRun = new Vector<String>();
+
+        if (!baseDir.exists()) {
+            baseDir.mkdirs();
         }
-        File[] dirs = m_baseDir.listFiles();
+
+        File[] dirs = baseDir.listFiles();
         if (dirs == null)
             throw new DepositorException("Unable to restore configuration directories within a base directory: "
-                + m_baseDir.getPath());
+                + baseDir.getPath());
+
         if (dirs.length > 0) {
             LOG.info("Restoring configurations from last run...");
 
@@ -196,7 +200,7 @@ public class SessionManager extends Thread {
                     if (!configurationFile.exists()) {
                         String message =
                             "Can not restore the configuration from the directory "
-                                + m_baseDir
+                                + baseDir
                                 + "/"
                                 + dirName
                                 + " on start up of the Depositor: a configuration file does not exist in the directory.";
@@ -215,25 +219,25 @@ public class SessionManager extends Thread {
                             configProperties.loadFromXML(fis);
                             configId = configProperties.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
                             if (dirName.startsWith("failed_expired_")) {
-                                m_failedExpired_configurationDirectories.put(configId, dirName);
+                                failedExpiredConfDir.put(configId, dirName);
                                 continue;
                             }
                             if (isMonitoringTimeOver(configProperties)) {
-                                m_expiredConfigurationsSinceLastRun.add(configId);
+                                expiredConfigurationsSinceLastRun.add(configId);
                             }
-                            this.m_configurations.put(configId, configProperties);
-                            this.m_configurationDirectoriesPathes.put(configId, dirName);
+                            this.configurations.put(configId, configProperties);
+                            this.configurationDirPathes.put(configId, dirName);
                         }
                         catch (InvalidPropertiesFormatException e) {
                             String message =
-                                "Can not restore the configuration data from the directory " + m_baseDir + "/"
-                                    + dirName + " on start up of the Depositor:";
+                                "Can not restore the configuration data from the directory " + baseDir + "/" + dirName
+                                    + " on start up of the Depositor:";
                             LOG.error(message + e.getMessage());
                             continue;
                         }
                         catch (IOException e) {
                             String message =
-                                "Can not restore the configuration from the directory " + m_baseDir + "/" + dirName
+                                "Can not restore the configuration from the directory " + baseDir + "/" + dirName
                                     + " on start up of the Depositor:";
                             LOG.error(message + e.getMessage());
                             continue;
@@ -242,22 +246,22 @@ public class SessionManager extends Thread {
                     }
                     catch (FileNotFoundException e) {
                         String message =
-                            "Can not restore the configuration data from the directory " + m_baseDir + "/" + dirName
+                            "Can not restore the configuration data from the directory " + baseDir + "/" + dirName
                                 + " on start up of the Depositor:";
                         LOG.error(message + e.getMessage());
                         continue;
                     }
                     // save configuration directory from last run to
                     // process it later
-                    m_dirsFromLastRunToProcess.put(configId, dirs[i]);
+                    dirsFromLastRunToProcess.put(configId, dirs[i]);
                 }
                 else {
                     dirs[i].delete();
                 }
             }
         }
-        m_threadNumber = 0;
-        m_maxThreadNumber = maxThreadNumber;
+        threadNumber = 0;
+        this.maxThreadNumber = maxThreadNumber;
         setName("Session-Reaper");
         start();
     }
@@ -287,7 +291,7 @@ public class SessionManager extends Thread {
 
     private void storeContentToInfrastructure(final File directoryToProcess, final String configId, File[] files, int j)
         throws DepositorException {
-        new ItemSession(this, m_configurations.get(configId), files[j], directoryToProcess, null).start();
+        new ItemSession(this, configurations.get(configId), files[j], directoryToProcess, null).start();
     }
 
     // ////////////////////////////////////////////////////////////////////////
@@ -295,157 +299,162 @@ public class SessionManager extends Thread {
      * Method increases counter holding the number of currently running threads.
      */
     protected synchronized void increaseThreadsNumber() {
-        m_threadNumber++;
+        threadNumber++;
     }
 
     /**
      * Method decreases counter holding the number of currently running threads.
      */
     protected synchronized void decreaseThreadsNumber() {
-        m_threadNumber--;
+        threadNumber--;
     }
 
     /**
      * Sessions administrator thread.
      */
     public void run() {
-
-        while (!m_threadNeedsToFinish) {
-            // processing content files from last run of a Deposit service,
-            // happens only once after restart of the Deposit service
-            Iterator<String> it = m_dirsFromLastRunToProcess.keySet().iterator();
-            while (it.hasNext()) {
-                String configId = it.next();
-                File dirToProcess = m_dirsFromLastRunToProcess.get(configId);
-                processContentFiles(dirToProcess, configId);
-            }
-            m_dirsFromLastRunToProcess = new HashMap<String, File>();
+        while (!isThreadNeedsToFinish) {
+            processFromLastRun();
             // iterate thru configurations, find expired configurations -->
             // clean sessions, find
             // failed configurations --> try to repair failed configurations
-            if (m_configurations.size() > 0) {
-                synchronized (m_configurations) {
-                    Set<String> configIds = m_configurations.keySet();
-                    Iterator<String> iter = configIds.iterator();
+            if (configurations.size() > 0) {
+                synchronized (configurations) {
+                    // FIXME containerId is _always_ empty
                     Vector<String> containerIds = new Vector<String>();
-                    while (iter.hasNext()) {
-                        String configId = iter.next();
-                        Properties configuration = m_configurations.get(configId);
-                        // if the configuration was already expired to restart
-                        // time of Depositor or if a monitoring time for the
-                        // configuration is over, clean up sessions for the
-                        // configuration
-                        if (m_expiredConfigurationsSinceLastRun.contains(configId)
-                            || isMonitoringTimeOver(configuration)) {
-                            cleanupSessions(configId);
-                            iter.remove();
-                            m_expiredConfigurationsSinceLastRun.remove(configId);
+
+                    for (String configId : configurations.keySet()) {
+                        Properties configuration = configurations.get(configId);
+                        if (isReingestNotNeeded(configId, configuration)) {
+                            cleanUpExpiredConfiguration(configId);
                         }
                         else {
-                            // monitoring time is not over, ping a container for
-                            // the
-                            // configuration
-
-                            String containerId = configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
-                            if (!containerIds.contains(containerId)) {
-                                String handle = configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
-                                // ping alive for the container with the handle
-                                // try {
-                                // GetMethod get = EscidocConnector
-                                // .pingContainer(
-                                // configuration
-                                // .getProperty(Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT),
-                                // containerId, handle);
-                                // get.releaseConnection();
-                                // } catch (ApplicationException e) {
-                                // logger.error("Error while ping container with id "
-                                // + containerId + e.getMessage());
-                                // // notify the user and eSyncDemon
-                                // } catch (InfrastructureException e) {
-                                // logger.error("Error while ping container with id "
-                                // + containerId + e.getMessage());
-                                // // notify the user and eSyncDemon
-                                // } catch (ConnectionException e) {
-                                // logger.error("Error while ping container with id "
-                                // + containerId + e.getMessage());
-                                // // notify the user and eSyncDemon
-                                // } catch (Throwable e) {
-                                // logger.error("Unexpected error while ping container with id "
-                                // + containerId + e.getMessage());
-                                // // notify the user and eSyncDemon
-                                // }
-                                containerIds.add(containerId);
-                            }
-
-                            // try to store failed content files of failed
-                            // configurations into infrastructure
-                            if (m_failedConfigurations.containsKey(configId)) {
-                                boolean stillFailed = false;
-                                Vector<ItemSession> oldSessionsForConfiguration = new Vector<ItemSession>();
-                                Vector<ItemSession> newSessionsForConfiguration = new Vector<ItemSession>();
-                                Vector<ItemSession> sessionsForConfiguration = m_sessions.get(configId);
-                                synchronized (sessionsForConfiguration) {
-                                    for (int i = 0; i < sessionsForConfiguration.size(); i++) {
-                                        // check if a session was repaired in
-                                        // the
-                                        // meantime
-                                        ItemSession session = sessionsForConfiguration.get(i);
-                                        if (session.isFinished() && session.isSessionFailed()) {
-                                            // try try to store failed content
-                                            // files
-                                            // into infrastructure
-                                            stillFailed = true;
-                                            try {
-                                                ItemSession newSession =
-                                                    new ItemSession(this, configuration, session.get_contentFile(),
-                                                        session.get_configurationDirectory(),
-                                                        session.get_providedCheckSum());
-
-                                                newSessionsForConfiguration.add(newSession);
-                                                oldSessionsForConfiguration.add(session);
-                                            }
-                                            catch (DepositorException e) {
-                                                // FIXME give a message
-                                                LOG.error(e.getMessage(), e);
-                                            }
-                                        }
-                                    }
-                                    sessionsForConfiguration.removeAll(oldSessionsForConfiguration);
-                                }
-                                for (int i = 0; i < newSessionsForConfiguration.size(); i++) {
-                                    ItemSession session = newSessionsForConfiguration.get(i);
-                                    session.start();
-                                }
-                                // if all currently finished sessions of the
-                                // configuration was repaired
-                                // in a meantime,
-                                // the configuration is not 'failed' any more
-                                // and
-                                // deposit service can accept new
-                                // content files for the configuration
-                                if (!stillFailed) {
-                                    synchronized (m_failedConfigurations) {
-                                        m_failedConfigurations.remove(configId);
-                                    }
-                                }
-                            }
-
+                            sendPingToCore(containerIds, configuration);
+                            reingestFailedIngest(configId, configuration);
                         }
                     }
+
                 }
             }
             int waitedSeconds = 0;
-            while (!m_threadNeedsToFinish && (waitedSeconds < m_pingInterval / 2)) {
+            while (!isThreadNeedsToFinish && (waitedSeconds < pingInterval / 2)) {
                 try {
                     Thread.sleep(1000);
                 }
                 catch (Exception e) {
+                    LOG.error("Something wrong: " + e.getMessage());
                 }
                 waitedSeconds++;
             }
         }
 
-        m_threadFinished = true;
+        isThreadFinished = true;
+    }
+
+    private boolean isReingestNotNeeded(String configId, Properties configuration) {
+        return expiredConfigurationsSinceLastRun.contains(configId) || isMonitoringTimeOver(configuration);
+    }
+
+    // if the configuration was already expired to restart
+    // time of Depositor or if a monitoring time for the
+    // configuration is over, clean up sessions for the
+    // configuration
+    private void cleanUpExpiredConfiguration(String configId) {
+        cleanupSessions(configId);
+        expiredConfigurationsSinceLastRun.remove(configId);
+    }
+
+    private void processFromLastRun() {
+        // processing content files from last run of a Deposit service,
+        // happens only once after restart of the Deposit service
+        for (String configId : dirsFromLastRunToProcess.keySet()) {
+            File dirToProcess = dirsFromLastRunToProcess.get(configId);
+            processContentFiles(dirToProcess, configId);
+        }
+
+        dirsFromLastRunToProcess = new HashMap<String, File>();
+    }
+
+    private void reingestFailedIngest(String configId, Properties configuration) {
+        // try to store failed content files of failed configurations into infrastructure
+        if (failedConfigurations.containsKey(configId)) {
+            boolean stillFailed = false;
+            Vector<ItemSession> oldSessionsForConfiguration = new Vector<ItemSession>();
+            Vector<ItemSession> newSessionsForConfiguration = new Vector<ItemSession>();
+            Vector<ItemSession> sessionsForConfiguration = sessions.get(configId);
+            synchronized (sessionsForConfiguration) {
+                for (int i = 0; i < sessionsForConfiguration.size(); i++) {
+                    // check if a session was repaired in the meantime
+                    ItemSession session = sessionsForConfiguration.get(i);
+                    if (session.isFinished() && session.isSessionFailed()) {
+                        // try try to store failed content files into infrastructure
+                        stillFailed = true;
+                        try {
+                            ItemSession newSession =
+                                new ItemSession(this, configuration, session.get_contentFile(),
+                                    session.get_configurationDirectory(), session.get_providedCheckSum());
+
+                            newSessionsForConfiguration.add(newSession);
+                            oldSessionsForConfiguration.add(session);
+                        }
+                        catch (DepositorException e) {
+                            // FIXME give a message
+                            LOG.error(e.getMessage(), e);
+                        }
+                    }
+                }
+                sessionsForConfiguration.removeAll(oldSessionsForConfiguration);
+            }
+            for (int i = 0; i < newSessionsForConfiguration.size(); i++) {
+                ItemSession session = newSessionsForConfiguration.get(i);
+                session.start();
+            }
+            // if all currently finished sessions of the configuration was repaired in a meantime,
+            // the configuration is not 'failed' any more
+            // and deposit service can accept new content files for the configuration
+            if (!stillFailed) {
+                synchronized (failedConfigurations) {
+                    failedConfigurations.remove(configId);
+                }
+            }
+        }
+    }
+
+    private void sendPingToCore(Vector<String> containerIds, Properties configuration) {
+        // monitoring time is not over, ping a container for
+        // the configuration
+
+        String containerId = configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
+        if (!containerIds.contains(containerId)) {
+
+            String handle = configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
+            // ping alive for the container with the handle
+            // try {
+            // GetMethod get = EscidocConnector
+            // .pingContainer(
+            // configuration
+            // .getProperty(Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT),
+            // containerId, handle);
+            // get.releaseConnection();
+            // } catch (ApplicationException e) {
+            // logger.error("Error while ping container with id "
+            // + containerId + e.getMessage());
+            // // notify the user and eSyncDemon
+            // } catch (InfrastructureException e) {
+            // logger.error("Error while ping container with id "
+            // + containerId + e.getMessage());
+            // // notify the user and eSyncDemon
+            // } catch (ConnectionException e) {
+            // logger.error("Error while ping container with id "
+            // + containerId + e.getMessage());
+            // // notify the user and eSyncDemon
+            // } catch (Throwable e) {
+            // logger.error("Unexpected error while ping container with id "
+            // + containerId + e.getMessage());
+            // // notify the user and eSyncDemon
+            // }
+            containerIds.add(containerId);
+        }
     }
 
     /**
@@ -476,14 +485,14 @@ public class SessionManager extends Thread {
      * Method adds a session to the map of tracked sessions of a configuration with a provided id.
      */
     protected void addSession(ItemSession session, String configurationId) {
-        synchronized (m_sessions) {
-            Vector<ItemSession> configurationSessions = m_sessions.get(configurationId);
+        synchronized (sessions) {
+            Vector<ItemSession> configurationSessions = sessions.get(configurationId);
             if (configurationSessions == null) {
                 configurationSessions = new Vector<ItemSession>();
 
             }
             configurationSessions.add(session);
-            m_sessions.put(configurationId, configurationSessions);
+            sessions.put(configurationId, configurationSessions);
         }
     }
 
@@ -493,9 +502,9 @@ public class SessionManager extends Thread {
      * @param configurationId
      */
     public void addToFailedConfigurations(final String configurationId) {
-        synchronized (m_failedConfigurations) {
-            if (!m_failedConfigurations.containsKey(configurationId)) {
-                m_failedConfigurations.put(configurationId, m_configurations.get(configurationId));
+        synchronized (failedConfigurations) {
+            if (!failedConfigurations.containsKey(configurationId)) {
+                failedConfigurations.put(configurationId, configurations.get(configurationId));
             }
         }
     }
@@ -521,8 +530,8 @@ public class SessionManager extends Thread {
     public void ingestConfiguration(Configuration configProperties, File configFile) throws ConfigurationException,
         IngestException {
         FileIngester ingester =
-            buildFileIngester(configProperties, configFile, m_configurationDirectoriesPathes.get(configProperties
-                .getProperty(Configuration.PROPERTY_CONFIGURATION_ID)));
+            buildFileIngester(configProperties, configFile,
+                configurationDirPathes.get(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID)));
 
         LOG.debug("ingesting configuration");
         ingester.setForceCreate(true);
@@ -537,11 +546,11 @@ public class SessionManager extends Thread {
                 configProperties.getProperty(Configuration.PROPERTY_EXPERIMENT_ID));
 
         LOG.debug("should be the same:[");
-        LOG.debug(m_baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
+        LOG.debug(baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
         LOG.debug(configFile.getPath());
         LOG.debug("]");
 
-        ingester.addFile(m_baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
+        ingester.addFile(baseDir + "/" + configDirName + "/" + Constants.CONFIGURATION_FILE_NAME);
         ingester.setItemContentModel(configProperties.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         // FIXME
         ingester.setContainerContentModel(configProperties.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
@@ -555,16 +564,14 @@ public class SessionManager extends Thread {
     }
 
     public void registerConfiguration(Configuration configProperties) {
-        synchronized (m_configurations) {
-            m_configurations.put(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID),
-                configProperties);
+        synchronized (configurations) {
+            configurations.put(configProperties.getProperty(Configuration.PROPERTY_CONFIGURATION_ID), configProperties);
         }
     }
 
     public void checkIfAlreadyExists(String configurationId) throws AlreadyExistException {
-        if (m_configurations.containsKey(configurationId)
-            || m_expiredSuccessfulConfigurations.containsKey(configurationId)
-            || m_failedExpired_configurationDirectories.containsKey(configurationId)) {
+        if (configurations.containsKey(configurationId) || expiredSuccessfulConfigurations.containsKey(configurationId)
+            || failedExpiredConfDir.containsKey(configurationId)) {
             String message = "Configuration " + configurationId + " already exists.";
             LOG.error(message);
             throw new AlreadyExistException(message);
@@ -601,7 +608,7 @@ public class SessionManager extends Thread {
         DateTime currentTime = new DateTime();
         DateTimeFormatter fmt = DateTimeFormat.forPattern(PATH_FORMAT);
         String configurationDirectoryName = currentTime.toString(fmt);
-        File configurationDirectory = new File(m_baseDir, configurationDirectoryName);
+        File configurationDirectory = new File(baseDir, configurationDirectoryName);
         configurationDirectory.mkdirs();
         File configurationFile = new File(configurationDirectory, Constants.CONFIGURATION_FILE_NAME);
         FileOutputStream os = null;
@@ -616,9 +623,9 @@ public class SessionManager extends Thread {
             configuration.storeToXML(os, null);
             os.flush();
             os.close();
-            synchronized (m_configurationDirectoriesPathes) {
-                m_configurationDirectoriesPathes.put(
-                    configuration.getProperty(Configuration.PROPERTY_CONFIGURATION_ID), configurationDirectoryName);
+            synchronized (configurationDirPathes) {
+                configurationDirPathes.put(configuration.getProperty(Configuration.PROPERTY_CONFIGURATION_ID),
+                    configurationDirectoryName);
             }
 
         }
@@ -642,7 +649,7 @@ public class SessionManager extends Thread {
      */
     public void deleteConfiguration(final String configId) throws ApplicationException, DepositorException {
 
-        if (m_failedExpired_configurationDirectories.containsKey(configId)) {
+        if (failedExpiredConfDir.containsKey(configId)) {
             String message =
                 "Can not delete the configuration: depositor could not store some content "
                     + "files for this configuration into the infrastracture.";
@@ -650,9 +657,9 @@ public class SessionManager extends Thread {
             throw new DepositorException(message);
         }
 
-        if (!m_isCleaning.contains(configId)) {
-            synchronized (m_configurations) {
-                if (!m_configurations.containsKey(configId)) {
+        if (!isCleaning.contains(configId)) {
+            synchronized (configurations) {
+                if (!configurations.containsKey(configId)) {
                     String message = "Depositor can not find a configuration with the id " + configId + ".";
                     LOG.error(message);
                     throw new ApplicationException(message);
@@ -661,13 +668,13 @@ public class SessionManager extends Thread {
                 // different thread and the configuration is registered,
                 // cleanup session for the configuration
                 cleanupSessions(configId);
-                m_configurations.remove(configId);
+                configurations.remove(configId);
             }
         }
         else {
             // wait until the thread cleaning this configuration is
             // finished
-            while (m_isCleaning.contains(configId)) {
+            while (isCleaning.contains(configId)) {
                 try {
                     Thread.sleep(250);
                 }
@@ -697,7 +704,7 @@ public class SessionManager extends Thread {
         throws ApplicationException, DepositorException {
 
         checkPreconditions(configId);
-        File configurationDirectory = new File(m_baseDir, m_configurationDirectoriesPathes.get(configId));
+        File configurationDirectory = new File(baseDir, configurationDirPathes.get(configId));
         checkIfExists(configId, configurationDirectory);
         checkFileName(configId, fileName, configurationDirectory);
         putMonitoringStartTimeIntoConfigurationIfMissing(configId);
@@ -720,7 +727,7 @@ public class SessionManager extends Thread {
         // create a session and start it. The session computed all additional
         // information and stores the content as component content in an item in
         // the eSciDoc Infrastructure.
-        new ItemSession(this, m_configurations.get(configId), content, configurationDirectory, checkSumValue).start();
+        new ItemSession(this, configurations.get(configId), content, configurationDirectory, checkSumValue).start();
     }
 
     private boolean isCheckSumEquals(MessageDigest md, String checkSumValue) {
@@ -780,7 +787,7 @@ public class SessionManager extends Thread {
         MessageDigest md = null;
         try {
             md =
-                MessageDigest.getInstance(m_configurations.get(configId).getProperty(
+                MessageDigest.getInstance(configurations.get(configId).getProperty(
                     Constants.PROPERTY_CHECKSUM_ALGORITHM));
         }
         catch (NoSuchAlgorithmException e) {
@@ -811,19 +818,19 @@ public class SessionManager extends Thread {
 
     private void checkPreconditions(final String configId) throws DepositorException, AlreadyExpiredException,
         ApplicationException {
-        if (m_threadNumber == m_maxThreadNumber) {
+        if (threadNumber == maxThreadNumber) {
             LOG.error(ERR_MAX_THREADS_);
             throw new DepositorException(ERR_MAX_THREADS_);
         }
 
-        if (m_expiredSuccessfulConfigurations.containsKey(configId)
-            || m_expiredConfigurationsSinceLastRun.contains(configId) || m_isCleaning.contains(configId)) {
+        if (expiredSuccessfulConfigurations.containsKey(configId)
+            || expiredConfigurationsSinceLastRun.contains(configId) || isCleaning.contains(configId)) {
             String message = "A session for the configuration with " + configId + " is expired.";
             LOG.error(message);
             throw new AlreadyExpiredException(message);
         }
 
-        if (m_failedExpired_configurationDirectories.containsKey(configId)) {
+        if (failedExpiredConfDir.containsKey(configId)) {
             String message =
                 "A configuration with id  "
                     + configId
@@ -832,7 +839,7 @@ public class SessionManager extends Thread {
             throw new DepositorException(message);
         }
 
-        if (m_failedConfigurations.containsKey(configId)) {
+        if (failedConfigurations.containsKey(configId)) {
             String message =
                 "Error on Depositor: can not temporary accept content files for the configuration with the id "
                     + configId + " due to an internal failure on a deposit service or on an infrastructure.";
@@ -840,7 +847,7 @@ public class SessionManager extends Thread {
             throw new DepositorException(message);
         }
 
-        if (!m_configurations.containsKey(configId)) {
+        if (!configurations.containsKey(configId)) {
             String message = "Can not find a configuration with the id " + configId + ".";
             LOG.error(message);
             throw new ApplicationException(message);
@@ -857,15 +864,15 @@ public class SessionManager extends Thread {
      */
     @Deprecated
     private void putMonitoringStartTimeIntoConfigurationIfMissing(String configId) {
-        File configurationDirectory = new File(m_baseDir, m_configurationDirectoriesPathes.get(configId));
+        File configurationDirectory = new File(baseDir, configurationDirPathes.get(configId));
         Properties configuration = null;
         // if a configuration does not contain a calculated monitoring start
         // time,
         // put a calculated monitoring start time in to the configuration and
         // store the
         // configuration into a configuration file
-        synchronized (m_configurations) {
-            configuration = m_configurations.get(configId);
+        synchronized (configurations) {
+            configuration = configurations.get(configId);
             String monitoringStartTime = configuration.getProperty(Constants.PROPERTY_MONITORING_START_TIME);
             if (monitoringStartTime == null) {
                 DateTimeZone.setDefault(DateTimeZone.UTC);
@@ -902,8 +909,8 @@ public class SessionManager extends Thread {
     // ///////////////////////////////////////////////////////////////////////
 
     public void close() {
-        m_threadNeedsToFinish = true;
-        while (!m_threadFinished) {
+        isThreadNeedsToFinish = true;
+        while (!isThreadFinished) {
             try {
                 Thread.sleep(250);
             }
@@ -932,14 +939,14 @@ public class SessionManager extends Thread {
     public void cleanupSessions(final String configurationId) {
         // add the configuration to a set of configurations, which are being
         // cleaned at the moment
-        synchronized (m_isCleaning) {
-            m_isCleaning.add(configurationId);
+        synchronized (isCleaning) {
+            isCleaning.add(configurationId);
         }
         Vector<ItemSession> sessionsForConfiguration = null;
-        Properties configuration = m_configurations.get(configurationId);
-        synchronized (m_sessions) {
-            sessionsForConfiguration = m_sessions.get(configurationId);
-            m_sessions.remove(configurationId);
+        Properties configuration = configurations.get(configurationId);
+        synchronized (sessions) {
+            sessionsForConfiguration = sessions.get(configurationId);
+            sessions.remove(configurationId);
         }
         if (sessionsForConfiguration != null) {
             boolean configurationFailed = false;
@@ -978,10 +985,10 @@ public class SessionManager extends Thread {
         }
         else {
             // There are no sessions for the configuration
-            String confDirectoryName = m_configurationDirectoriesPathes.get(configurationId);
-            File configurationDirectory = new File(m_baseDir, confDirectoryName);
+            String confDirectoryName = configurationDirPathes.get(configurationId);
+            File configurationDirectory = new File(baseDir, confDirectoryName);
             if (configurationDirectory.exists()) {
-                if (m_failedConfigurations.containsKey(configurationId)) {
+                if (failedConfigurations.containsKey(configurationId)) {
                     // content files for the configuration could not be restored
                     // from a file system after restart of a Depositor
                     renameConfigDirectoryToFailedExpired(configurationDirectory, configurationId);
@@ -991,13 +998,13 @@ public class SessionManager extends Thread {
                 }
             }
         }
-        synchronized (m_failedConfigurations) {
-            m_failedConfigurations.remove(configurationId);
+        synchronized (failedConfigurations) {
+            failedConfigurations.remove(configurationId);
         }
-        synchronized (m_isCleaning) {
+        synchronized (isCleaning) {
             // remove the configuration from a set of configurations, which
             // are being cleaned at the moment
-            m_isCleaning.remove(configurationId);
+            isCleaning.remove(configurationId);
         }
     }
 
@@ -1017,8 +1024,8 @@ public class SessionManager extends Thread {
             files[i].delete();
         }
         configurationDirectory.delete();
-        synchronized (m_expiredSuccessfulConfigurations) {
-            m_expiredSuccessfulConfigurations.put(configurationId, configuration);
+        synchronized (expiredSuccessfulConfigurations) {
+            expiredSuccessfulConfigurations.put(configurationId, configuration);
         }
     }
 
@@ -1037,15 +1044,15 @@ public class SessionManager extends Thread {
             }
         }
         String configDirName = configurationDirectory.getName();
-        synchronized (m_failedExpired_configurationDirectories) {
-            boolean success = configurationDirectory.renameTo(new File(m_baseDir, "failed_expired_" + configDirName));
+        synchronized (failedExpiredConfDir) {
+            boolean success = configurationDirectory.renameTo(new File(baseDir, "failed_expired_" + configDirName));
             if (!success) {
-                m_failedExpired_configurationDirectories.put(configurationId, configDirName);
+                failedExpiredConfDir.put(configurationId, configDirName);
                 LOG.error("Error while cleaning up sessions for the configuration with id " + configurationId
                     + " : can not rename a configuration directory to 'failed_expired_" + configDirName + "'.");
             }
             else {
-                m_failedExpired_configurationDirectories.put(configurationId, "failed_expired_" + configDirName);
+                failedExpiredConfDir.put(configurationId, "failed_expired_" + configDirName);
             }
         }
     }
