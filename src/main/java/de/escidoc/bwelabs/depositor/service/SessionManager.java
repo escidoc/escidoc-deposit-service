@@ -765,6 +765,7 @@ public class SessionManager extends Thread {
         // create a session and start it. The session computed all additional
         // information and stores the content as component content in an item in
         // the eSciDoc Infrastructure.
+        LOG.debug("Checksums: send[" + checkSumValue + "] file[" + checksum + "]");
         if (checksum.equals(checkSumValue)) {
             new ItemSession(this, m_configurations.get(configId), contentFile, configurationDirectory, checksum)
                 .start();
