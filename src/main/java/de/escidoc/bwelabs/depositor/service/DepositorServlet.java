@@ -145,9 +145,7 @@ public class DepositorServlet extends HttpServlet {
                 if (e instanceof ConfigurationException) {
                     throw (ConfigurationException) e;
                 }
-                else {
-                    throw (IngestException) e;
-                }
+                throw (IngestException) e;
             }
             manager.registerConfiguration(configProperties);
 

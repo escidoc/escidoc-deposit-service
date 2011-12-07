@@ -26,18 +26,14 @@
  * Gesellschaft zur Foerderung der Wissenschaft e.V.
  * All rights reserved.  Use is subject to license terms.
  */
-/*
- * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
- * fuer wissenschaftlich-technische Information mbH and Max-Planck-
- * Gesellschaft zur Foerderung der Wissenschaft e.V.  
- * All rights reserved.  Use is subject to license terms.
- */
 package de.escidoc.bwelabs.depositor.service;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
@@ -53,7 +49,14 @@ import com.google.common.base.Preconditions;
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
 import de.escidoc.bwelabs.depositor.utility.Utility;
+import de.escidoc.core.client.ItemHandlerClient;
+import de.escidoc.core.client.exceptions.EscidocException;
+import de.escidoc.core.client.exceptions.InternalClientException;
+import de.escidoc.core.client.exceptions.TransportException;
+import de.escidoc.core.client.interfaces.ItemHandlerClientInterface;
 import de.escidoc.core.resources.common.properties.PublicStatus;
+import de.escidoc.core.resources.om.item.component.ChecksumAlgorithm;
+import de.escidoc.core.resources.om.item.component.Component;
 
 /**
  * A class handles a storage of content files into an infrastructure.
@@ -62,6 +65,8 @@ import de.escidoc.core.resources.common.properties.PublicStatus;
  * 
  */
 public class ItemSession extends Thread {
+
+    private static final String PREFIX_FAILED = "failed_";
 
     private static final Logger LOG = LoggerFactory.getLogger(ItemSession.class.getName());
 
@@ -83,6 +88,8 @@ public class ItemSession extends Thread {
 
     private boolean isSessionFailed = false;
 
+    private ItemHandlerClientInterface itemClient;
+
     public ItemSession(SessionManager manager, Properties configuration, File content, File configDir,
         String providedCheckSum) throws DepositorException {
         Preconditions.checkNotNull(manager, "manager is null: %s", manager);
@@ -92,28 +99,24 @@ public class ItemSession extends Thread {
 
         this.manager = manager;
         this.configuration = configuration;
-        // contentFile is created from configurationDirectory and a filename, so
-        // configurationDirectory is not needed to reconstruct the path
-        // configurationDirectory.getName() + "/" + contentFile.getName();
         this.content = content;
         this.contentFilePath = content.getPath();
         this.configDir = configDir;
 
         assignCheckSum(configuration, content, providedCheckSum);
-        // _configurationId = configId;
         createUniqueKey();
-        isThreadWorking = true;
 
+        isThreadWorking = true;
         setName("Session-" + sessionKey + "-Retriever");
     }
 
     private void createUniqueKey() {
-        String s = "" + this.hashCode();
-        if (s.startsWith("-")) {
-            sessionKey = "Z" + s.substring(1);
+        String baseKey = "" + this.hashCode();
+        if (baseKey.startsWith("-")) {
+            sessionKey = "Z" + baseKey.substring(1);
         }
         else {
-            sessionKey = "X" + s;
+            sessionKey = "X" + baseKey;
         }
     }
 
@@ -173,7 +176,6 @@ public class ItemSession extends Thread {
         }
     }
 
-    // /////////////////////////////////////////////////////////////////////////
     /**
      * Content file storage thread.
      */
@@ -188,7 +190,6 @@ public class ItemSession extends Thread {
 
     }
 
-    // /////////////////////////////////////////////////////////////////////////
     /**
      * Method calls a method EscidocUtility.createContentItemXml() by providing it with a local path to a file relative
      * to a base directory of Depositor service in order to create an item-xml. It makes two attempts to store the item
@@ -203,33 +204,31 @@ public class ItemSession extends Thread {
     private void storeFileInToInfrastructure() {
         try {
             String itemId = ingest();
-            checkChecksum();
+            checkChecksum(itemId);
             doRenameForSuccessful(itemId);
         }
         catch (ConfigurationException e) {
-            LOG.error("The ingest is not properperly configured. " + e.getMessage(), e);
+            LOG.warn("The ingest is not properperly configured. " + e.getMessage(), e);
             handleFailedIngest();
         }
         catch (IngestException e) {
-            LOG.error("Fail to ingest " + e.getMessage(), e);
+            LOG.warn("Fail to ingest " + e.getMessage(), e);
             handleFailedIngest();
         }
-
     }
 
     private void handleFailedIngest() {
-        renameFileName();
+        renameFileName(PREFIX_FAILED);
         isSessionFailed = true;
         manager.addToFailedConfigurations(getConfigurationId());
     }
 
-    private void renameFileName() {
-        if (renameFile("failed_")) {
-            // workaround because of a bug in Java1.5
-            content = new File(configDir, "failed_" + getFileName());
+    private void renameFileName(String prefix) {
+        boolean isSuccesfull = renameFile(prefix);
+        if (isSuccesfull) {
+            content = new File(configDir, prefix + getFileName());
         }
         else {
-            // FIXME and now?
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'failed_" + getFileName() + "'."
                 + " for a configuration with id " + getConfigurationId());
         }
@@ -250,11 +249,12 @@ public class ItemSession extends Thread {
 
         // TODO if unsuccessful item and references must be removed
         // _contentFile.delete();
-        boolean isRenameSuccesful = content.renameTo(new File(configDir, "successful_" + getFileName()));
+        File renamedFile = new File(configDir, "successful_" + getFileName());
+        boolean isRenameSuccesful = content.renameTo(renamedFile);
         if (isRenameSuccesful) {
             // workaround because of a bug in Java1.5
-            // TODO check if the workaround still necesassary
-            content = new File(configDir, "successful_" + getFileName());
+            // TODO check if the workaround still nesesassary
+            content = renamedFile;
         }
         else {
             LOG.error("A content file " + getFileName() + " could not be renamed to a 'successful_" + getFileName()
@@ -263,23 +263,46 @@ public class ItemSession extends Thread {
     }
 
     /**
+     * @param itemId
+     * @return
      * @throws IngestException
      *             If checksum of ingested Item is not as expected.
      */
-    private void checkChecksum() throws IngestException {
-        // TODO compare ingested content checksum with the provided checksum
-        // compare checksum from infrastructure with own one
-        // String createdCheckSum = ih.getChecksum();
-        // String itemHref = ih.getItemHref();
-        // itemId = Utility.getId(itemHref);
-        // String componentHref = ih.getComponentHref();
-        // String lmd = ih.getLmd();
-        throw new UnsupportedOperationException("Not yet implemented");
+    private void checkChecksum(String itemId) throws IngestException {
+        try {
+            itemClient = new ItemHandlerClient(new URL(getBaseUri()));
+            itemClient.setHandle(getUserHandle());
+            Component comp = itemClient.retrieve(itemId).getComponents().get(0);
+            ChecksumAlgorithm algorithm = comp.getProperties().getChecksumAlgorithm();
+            if (algorithm.equals(ChecksumAlgorithm.MD5)) {
+                String checksum = comp.getProperties().getChecksum();
+                if (providedCheckSum.equalsIgnoreCase(checksum)) {
+                    return;
+                }
+                throw new IngestException(
+                    "The provided checksum is not equals with the from eSciDoc Core calculated one");
+            }
+        }
+        catch (MalformedURLException e) {
+            LOG.error("URL not well formed. " + e.getMessage(), e);
+            throw new IngestException(e);
+        }
+        catch (EscidocException e) {
+            LOG.error("Something wrong in eSciDoc Core: " + e.getMessage(), e);
+            throw new IngestException(e);
+        }
+        catch (InternalClientException e) {
+            LOG.error("Something wrong in escidoc java connector" + e.getMessage(), e);
+            throw new IngestException(e);
+        }
+        catch (TransportException e) {
+            LOG.error("HTTP Transport error: " + e.getMessage(), e);
+            throw new IngestException(e);
+        }
     }
 
     private String getConfigurationId() {
-        String configurationId = configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
-        return configurationId;
+        return configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
     }
 
     private String ingest() throws ConfigurationException, IngestException {
@@ -287,12 +310,18 @@ public class ItemSession extends Thread {
         ingester.setForceCreate(true);
         ingester.ingest();
         // FIXME FileIngester might be changed.
+        if (ingester.getItemIDs().isEmpty()) {
+            throw new IngestException("Can not get ingested item id.");
+        }
         return ingester.getItemIDs().get(0);
     }
 
     private FileIngester buildFileIngester() {
         FileIngester ingester = new FileIngester(getBaseUri(), getUserHandle(), getContainerId());
-        ingester.addFile(contentFilePath);
+        if (content.getName().startsWith(PREFIX_FAILED)) {
+            removePrefix();
+        }
+        ingester.addFile(content.getPath());
         // FIXME: container content model is not needed here.
         ingester.setContainerContentModel(configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         ingester.setItemContentModel(configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
@@ -305,12 +334,27 @@ public class ItemSession extends Thread {
         return ingester;
     }
 
+    private void removePrefix() {
+        String onlyFileName = content.getName().split("_")[1];
+        Preconditions.checkState(!onlyFileName.startsWith(PREFIX_FAILED), "Removing prefix failed: " + onlyFileName);
+
+        File renamedFile = new File(configDir, onlyFileName);
+        boolean isRenameSuccesful = content.renameTo(renamedFile);
+        if (isRenameSuccesful) {
+            // workaround because of a bug in Java1.5
+            // TODO check if the workaround still nesesassary
+            content = renamedFile;
+        }
+        else {
+            LOG.error("A content file " + getFileName() + " could not be renamed to a " + getFileName() + "'."
+                + " for a configuration with id " + getConfigurationId());
+        }
+    }
+
     private String getUserHandle() {
         return configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
     }
 
-    //
-    //
     private String getContainerId() {
         return configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
     }
