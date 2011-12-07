@@ -83,7 +83,7 @@ public class DepositServiceSpec {
 
     private static final String CONTENT_EXAMPLE = "header.txt";
 
-    private static final int HOW_MANY = 8;
+    private static final int HOW_MANY = 4;
 
     @Ignore
     @SuppressWarnings("boxing")
@@ -152,9 +152,9 @@ public class DepositServiceSpec {
         // When
         if (isSavingSuccesful(configuration)) {
             for (int i = 0; i < HOW_MANY; i++) {
-                HttpResponse response =
-                    saveContent(configuration, id, new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date())
-                        + "@" + CONTENT_EXAMPLE);
+                // FIXME esyncdaemon can not wait for 3 seconds.
+                // Thread.sleep(10000);
+                HttpResponse response = saveContent(configuration, id, createUniqueFileName());
                 int statusCode = response.getStatusLine().getStatusCode();
                 LOG.debug("Status code: " + statusCode);
                 LOG.debug("Reason: " + response.getStatusLine().getReasonPhrase());
@@ -164,7 +164,7 @@ public class DepositServiceSpec {
     }
 
     private String createUniqueFileName() {
-        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date()) + "@" + CONTENT_EXAMPLE;
+        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()) + "@" + CONTENT_EXAMPLE;
     }
 
     private boolean moreThanOne(int i) {

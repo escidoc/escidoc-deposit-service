@@ -55,7 +55,6 @@ import de.escidoc.core.client.exceptions.InternalClientException;
 import de.escidoc.core.client.exceptions.TransportException;
 import de.escidoc.core.client.interfaces.ItemHandlerClientInterface;
 import de.escidoc.core.resources.common.properties.PublicStatus;
-import de.escidoc.core.resources.om.item.Item;
 import de.escidoc.core.resources.om.item.component.ChecksumAlgorithm;
 import de.escidoc.core.resources.om.item.component.Component;
 
@@ -209,11 +208,11 @@ public class ItemSession extends Thread {
             doRenameForSuccessful(itemId);
         }
         catch (ConfigurationException e) {
-            LOG.error("The ingest is not properperly configured. " + e.getMessage(), e);
+            LOG.warn("The ingest is not properperly configured. " + e.getMessage(), e);
             handleFailedIngest();
         }
         catch (IngestException e) {
-            LOG.error("Fail to ingest " + e.getMessage(), e);
+            LOG.warn("Fail to ingest " + e.getMessage(), e);
             handleFailedIngest();
         }
     }
@@ -311,12 +310,18 @@ public class ItemSession extends Thread {
         ingester.setForceCreate(true);
         ingester.ingest();
         // FIXME FileIngester might be changed.
+        if (ingester.getItemIDs().isEmpty()) {
+            throw new IngestException("Can not get ingested item id.");
+        }
         return ingester.getItemIDs().get(0);
     }
 
     private FileIngester buildFileIngester() {
         FileIngester ingester = new FileIngester(getBaseUri(), getUserHandle(), getContainerId());
-        ingester.addFile(contentFilePath);
+        if (content.getName().startsWith(PREFIX_FAILED)) {
+            removePrefix();
+        }
+        ingester.addFile(content.getPath());
         // FIXME: container content model is not needed here.
         ingester.setContainerContentModel(configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
         ingester.setItemContentModel(configuration.getProperty(Configuration.PROPERTY_CONTENT_MODEL_ID));
@@ -327,6 +332,23 @@ public class ItemSession extends Thread {
         ingester.setValidStatus("valid");
         ingester.setMimeType("text/plain");
         return ingester;
+    }
+
+    private void removePrefix() {
+        String onlyFileName = content.getName().split("_")[1];
+        Preconditions.checkState(!onlyFileName.startsWith(PREFIX_FAILED), "Removing prefix failed: " + onlyFileName);
+
+        File renamedFile = new File(configDir, onlyFileName);
+        boolean isRenameSuccesful = content.renameTo(renamedFile);
+        if (isRenameSuccesful) {
+            // workaround because of a bug in Java1.5
+            // TODO check if the workaround still nesesassary
+            content = renamedFile;
+        }
+        else {
+            LOG.error("A content file " + getFileName() + " could not be renamed to a " + getFileName() + "'."
+                + " for a configuration with id " + getConfigurationId());
+        }
     }
 
     private String getUserHandle() {
