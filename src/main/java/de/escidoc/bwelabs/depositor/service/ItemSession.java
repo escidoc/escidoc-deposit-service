@@ -32,6 +32,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
@@ -47,7 +49,15 @@ import com.google.common.base.Preconditions;
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
 import de.escidoc.bwelabs.depositor.utility.Utility;
+import de.escidoc.core.client.ItemHandlerClient;
+import de.escidoc.core.client.exceptions.EscidocException;
+import de.escidoc.core.client.exceptions.InternalClientException;
+import de.escidoc.core.client.exceptions.TransportException;
+import de.escidoc.core.client.interfaces.ItemHandlerClientInterface;
 import de.escidoc.core.resources.common.properties.PublicStatus;
+import de.escidoc.core.resources.om.item.Item;
+import de.escidoc.core.resources.om.item.component.ChecksumAlgorithm;
+import de.escidoc.core.resources.om.item.component.Component;
 
 /**
  * A class handles a storage of content files into an infrastructure.
@@ -78,6 +88,8 @@ public class ItemSession extends Thread {
     private boolean isThreadWorking;
 
     private boolean isSessionFailed = false;
+
+    private ItemHandlerClientInterface itemClient;
 
     public ItemSession(SessionManager manager, Properties configuration, File content, File configDir,
         String providedCheckSum) throws DepositorException {
@@ -253,11 +265,41 @@ public class ItemSession extends Thread {
 
     /**
      * @param itemId
+     * @return
      * @throws IngestException
      *             If checksum of ingested Item is not as expected.
      */
     private void checkChecksum(String itemId) throws IngestException {
-        throw new UnsupportedOperationException("Not yet implemented");
+        try {
+            itemClient = new ItemHandlerClient(new URL(getBaseUri()));
+            itemClient.setHandle(getUserHandle());
+            Component comp = itemClient.retrieve(itemId).getComponents().get(0);
+            ChecksumAlgorithm algorithm = comp.getProperties().getChecksumAlgorithm();
+            if (algorithm.equals(ChecksumAlgorithm.MD5)) {
+                String checksum = comp.getProperties().getChecksum();
+                if (providedCheckSum.equalsIgnoreCase(checksum)) {
+                    return;
+                }
+                throw new IngestException(
+                    "The provided checksum is not equals with the from eSciDoc Core calculated one");
+            }
+        }
+        catch (MalformedURLException e) {
+            LOG.error("URL not well formed. " + e.getMessage(), e);
+            throw new IngestException(e);
+        }
+        catch (EscidocException e) {
+            LOG.error("Something wrong in eSciDoc Core: " + e.getMessage(), e);
+            throw new IngestException(e);
+        }
+        catch (InternalClientException e) {
+            LOG.error("Something wrong in escidoc java connector" + e.getMessage(), e);
+            throw new IngestException(e);
+        }
+        catch (TransportException e) {
+            LOG.error("HTTP Transport error: " + e.getMessage(), e);
+            throw new IngestException(e);
+        }
     }
 
     private String getConfigurationId() {

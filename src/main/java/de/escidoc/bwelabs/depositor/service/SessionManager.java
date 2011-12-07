@@ -26,12 +26,6 @@
  * Gesellschaft zur Foerderung der Wissenschaft e.V.
  * All rights reserved.  Use is subject to license terms.
  */
-/*
- * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
- * fuer wissenschaftlich-technische Information mbH and Max-Planck-
- * Gesellschaft zur Foerderung der Wissenschaft e.V.  
- * All rights reserved.  Use is subject to license terms.
- */
 package de.escidoc.bwelabs.depositor.service;
 
 import java.io.File;
@@ -70,7 +64,6 @@ import de.escidoc.bwelabs.depositor.error.ApplicationException;
 import de.escidoc.bwelabs.depositor.error.ConnectionException;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
 import de.escidoc.bwelabs.depositor.error.InfrastructureException;
-import de.escidoc.bwelabs.depositor.utility.EscidocUtility;
 import de.escidoc.bwelabs.depositor.utility.Utility;
 import de.escidoc.core.resources.common.properties.PublicStatus;
 
@@ -266,8 +259,6 @@ public class SessionManager extends Thread {
         m_threadNumber = 0;
         m_maxThreadNumber = maxThreadNumber;
         setName("Session-Reaper");
-        // EscidocConnector.init();
-        EscidocUtility.init(m_contentFileServletUrl);
         start();
     }
 
