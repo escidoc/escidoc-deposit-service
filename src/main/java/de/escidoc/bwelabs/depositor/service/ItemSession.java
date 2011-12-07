@@ -201,7 +201,7 @@ public class ItemSession extends Thread {
     private void storeFileInToInfrastructure() {
         try {
             String itemId = ingest();
-            checkChecksum();
+            checkChecksum(itemId);
             doRenameForSuccessful(itemId);
         }
         catch (ConfigurationException e) {
@@ -260,17 +260,11 @@ public class ItemSession extends Thread {
     }
 
     /**
+     * @param itemId
      * @throws IngestException
      *             If checksum of ingested Item is not as expected.
      */
-    private void checkChecksum() throws IngestException {
-        // TODO compare ingested content checksum with the provided checksum
-        // compare checksum from infrastructure with own one
-        // String createdCheckSum = ih.getChecksum();
-        // String itemHref = ih.getItemHref();
-        // itemId = Utility.getId(itemHref);
-        // String componentHref = ih.getComponentHref();
-        // String lmd = ih.getLmd();
+    private void checkChecksum(String itemId) throws IngestException {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 

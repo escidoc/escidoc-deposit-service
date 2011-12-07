@@ -751,32 +751,36 @@ public class SessionManager extends Thread {
         }
     }
 
-    private MessageDigest storeFileAndCalculateChecksum(final String configId, final InputStream in, File contentFile)
+    private MessageDigest storeFileAndCalculateChecksum(final String configId, final InputStream is, File contentFile)
         throws DepositorException {
-        // store stream content in file named with filename while computing the
-        // message digest
-        FileOutputStream os = null;
+        MessageDigest md = getMessageDigest(configId);
+        DigestInputStream dis = null;
         try {
-            os = new FileOutputStream(contentFile);
+            FileOutputStream fos = new FileOutputStream(contentFile);
+            dis = new DigestInputStream(is, md);
+            byte[] buf = new byte[5000];
+            int readByte;
+            while ((readByte = dis.read(buf)) > 0) {
+                fos.write(buf, 0, readByte);
+            }
         }
         catch (FileNotFoundException e) {
             LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
         }
-        MessageDigest md = getMessageDigest(configId);
-        DigestInputStream din = new DigestInputStream(in, md);
-        byte[] buf = new byte[5000];
-        int len;
-        try {
-            while ((len = din.read(buf)) > 0) {
-                os.write(buf, 0, len);
-            }
-            os.close();
-            din.close();
-        }
         catch (IOException e) {
             LOG.error(e.getMessage());
             throw new DepositorException(e.getMessage());
+        }
+        finally {
+            if (dis != null) {
+                try {
+                    dis.close();
+                }
+                catch (IOException e) {
+                    LOG.error(e.getMessage());
+                }
+            }
         }
         return md;
     }
