@@ -83,7 +83,7 @@ public class DepositServiceSpec {
 
     private static final String CONTENT_EXAMPLE = "header.txt";
 
-    private static final int HOW_MANY = 2;
+    private static final int HOW_MANY = 4;
 
     @Ignore
     @SuppressWarnings("boxing")
@@ -149,19 +149,22 @@ public class DepositServiceSpec {
         // Given X0 && ...Xn
         Configuration configuration = createConfiguration();
         String id = configuration.getProperty(Configuration.PROPERTY_CONFIGURATION_ID);
-        String timeStamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date());
-
         // When
         if (isSavingSuccesful(configuration)) {
             for (int i = 0; i < HOW_MANY; i++) {
+                // FIXME esyncdaemon can not wait for 3 seconds.
                 Thread.sleep(3000);
-                HttpResponse response = saveContent(configuration, id, timeStamp + "@" + CONTENT_EXAMPLE);
+                HttpResponse response = saveContent(configuration, id, createUniqueFileName());
                 int statusCode = response.getStatusLine().getStatusCode();
                 LOG.debug("Status code: " + statusCode);
                 LOG.debug("Reason: " + response.getStatusLine().getReasonPhrase());
                 assertEquals("Can not save more than one files. ", 200, statusCode);
             }
         }
+    }
+
+    private String createUniqueFileName() {
+        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date()) + "@" + CONTENT_EXAMPLE;
     }
 
     private boolean moreThanOne(int i) {
