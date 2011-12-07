@@ -26,21 +26,7 @@
  * Gesellschaft zur Foerderung der Wissenschaft e.V.
  * All rights reserved.  Use is subject to license terms.
  */
-/*
- * Copyright 2006-2008 Fachinformationszentrum Karlsruhe Gesellschaft
- * fuer wissenschaftlich-technische Information mbH and Max-Planck-
- * Gesellschaft zur Foerderung der Wissenschaft e.V.  
- * All rights reserved.  Use is subject to license terms.
- */
 package de.escidoc.bwelabs.depositor.service;
-
-import com.google.common.base.Preconditions;
-
-import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
-import org.escidoc.core.client.ingest.exceptions.IngestException;
-import org.escidoc.core.client.ingest.filesystem.FileIngester;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -49,6 +35,14 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
+
+import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
+import org.escidoc.core.client.ingest.exceptions.IngestException;
+import org.escidoc.core.client.ingest.filesystem.FileIngester;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 import de.escidoc.bwelabs.deposit.Configuration;
 import de.escidoc.bwelabs.depositor.error.DepositorException;
@@ -171,7 +165,6 @@ public class ItemSession extends Thread {
         }
     }
 
-    // /////////////////////////////////////////////////////////////////////////
     /**
      * Content file storage thread.
      */
@@ -186,7 +179,6 @@ public class ItemSession extends Thread {
 
     }
 
-    // /////////////////////////////////////////////////////////////////////////
     /**
      * Method calls a method EscidocUtility.createContentItemXml() by providing it with a local path to a file relative
      * to a base directory of Depositor service in order to create an item-xml. It makes two attempts to store the item
@@ -250,7 +242,7 @@ public class ItemSession extends Thread {
         boolean isRenameSuccesful = content.renameTo(renamedFile);
         if (isRenameSuccesful) {
             // workaround because of a bug in Java1.5
-            // TODO check if the workaround still necesassary
+            // TODO check if the workaround still nesesassary
             content = renamedFile;
         }
         else {
