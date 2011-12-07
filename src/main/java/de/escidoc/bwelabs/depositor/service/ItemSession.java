@@ -261,8 +261,7 @@ public class ItemSession extends Thread {
     }
 
     private String getConfigurationId() {
-        String configurationId = configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
-        return configurationId;
+        return configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
     }
 
     private String ingest() throws ConfigurationException, IngestException {

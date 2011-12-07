@@ -34,8 +34,9 @@
 	<entry key="ConfigurationID">foobar</entry>
 	<entry key="UserHandle">foobar</entry>
 
-	<entry key="WorkspaceID">escidoc:11556</entry>
-	<entry key="ExperimentID">escidoc:11596</entry>
+	<entry key="WorkspaceID">escidoc:11691</entry>
+	<entry key="ExperimentID">escidoc:11692</entry>
+	
 	<entry key="ContentModelID">escidoc:3</entry>
 
 	<entry key="DepositServerEndpoint">http://localhost:8086/deposit-service/depositor</entry>
