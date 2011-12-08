@@ -377,38 +377,30 @@ public class SessionManager extends Thread {
 
     private void reingestFailedIngest(String configId, Properties configuration) {
         // try to store failed content files of failed configurations into infrastructure
-        if (failedConfigurations.containsKey(configId)) {
+        if (isFailed(configId)) {
             boolean stillFailed = false;
-            Vector<ItemSession> oldSessionsForConfiguration = new Vector<ItemSession>();
-            Vector<ItemSession> newSessionsForConfiguration = new Vector<ItemSession>();
-            Vector<ItemSession> sessionsForConfiguration = sessions.get(configId);
-            synchronized (sessionsForConfiguration) {
-                for (int i = 0; i < sessionsForConfiguration.size(); i++) {
-                    // check if a session was repaired in the meantime
-                    ItemSession session = sessionsForConfiguration.get(i);
-                    if (session.isFinished() && session.isSessionFailed()) {
-                        // try try to store failed content files into infrastructure
-                        stillFailed = true;
-                        try {
-                            ItemSession newSession =
-                                new ItemSession(this, configuration, session.get_contentFile(),
-                                    session.get_configurationDirectory(), session.get_providedCheckSum());
 
-                            newSessionsForConfiguration.add(newSession);
-                            oldSessionsForConfiguration.add(session);
-                        }
-                        catch (DepositorException e) {
-                            // FIXME give a message
-                            LOG.error(e.getMessage(), e);
-                        }
+            // this list contains #n item sessions. Item session is a File Ingest Thread.
+            Vector<ItemSession> sessionsForConfiguration = sessions.get(configId);
+
+            Vector<ItemSession> oldSessionsForConfiguration = new Vector<ItemSession>();
+
+            Vector<ItemSession> reingestSessions = new Vector<ItemSession>();
+
+            synchronized (sessionsForConfiguration) {
+                for (ItemSession itemSession : sessionsForConfiguration) {
+                    if (isFinishedAndStillFailed(itemSession)) {
+                        stillFailed = true;
+                        createReingestSessions(configuration, oldSessionsForConfiguration, reingestSessions, itemSession);
                     }
                 }
                 sessionsForConfiguration.removeAll(oldSessionsForConfiguration);
             }
-            for (int i = 0; i < newSessionsForConfiguration.size(); i++) {
-                ItemSession session = newSessionsForConfiguration.get(i);
-                session.start();
+
+            for (ItemSession itemReingestSession : reingestSessions) {
+                itemReingestSession.start();
             }
+
             // if all currently finished sessions of the configuration was repaired in a meantime,
             // the configuration is not 'failed' any more
             // and deposit service can accept new content files for the configuration
@@ -418,6 +410,32 @@ public class SessionManager extends Thread {
                 }
             }
         }
+    }
+
+    // try try to store failed content files into infrastructure
+    private void createReingestSessions(
+        Properties configuration, Vector<ItemSession> oldSessionsForConfiguration,
+        Vector<ItemSession> reingestSessions, ItemSession is) {
+        try {
+            ItemSession newSession =
+                new ItemSession(this, configuration, is.getContentFile(), is.getConfigurationDirectory(),
+                    is.getProvidedCheckSum());
+
+            reingestSessions.add(newSession);
+            oldSessionsForConfiguration.add(is);
+        }
+        catch (DepositorException e) {
+            // FIXME give a message
+            LOG.error(e.getMessage(), e);
+        }
+    }
+
+    private boolean isFinishedAndStillFailed(ItemSession is) {
+        return is.isFinished() && is.isSessionFailed();
+    }
+
+    private boolean isFailed(String configId) {
+        return failedConfigurations.containsKey(configId);
     }
 
     private void sendPingToCore(Vector<String> containerIds, Properties configuration) {
@@ -503,7 +521,7 @@ public class SessionManager extends Thread {
      */
     public void addToFailedConfigurations(final String configurationId) {
         synchronized (failedConfigurations) {
-            if (!failedConfigurations.containsKey(configurationId)) {
+            if (!isFailed(configurationId)) {
                 failedConfigurations.put(configurationId, configurations.get(configurationId));
             }
         }
@@ -839,7 +857,7 @@ public class SessionManager extends Thread {
             throw new DepositorException(message);
         }
 
-        if (failedConfigurations.containsKey(configId)) {
+        if (isFailed(configId)) {
             String message =
                 "Error on Depositor: can not temporary accept content files for the configuration with the id "
                     + configId + " due to an internal failure on a deposit service or on an infrastructure.";
@@ -955,7 +973,7 @@ public class SessionManager extends Thread {
             // check if some sessions of the configuration failed
             while (iter.hasNext()) {
                 ItemSession session = iter.next();
-                configurationDirectory = session.get_configurationDirectory();
+                configurationDirectory = session.getConfigurationDirectory();
                 while (!session.isFinished()) {
                     try {
                         Thread.sleep(250);
@@ -988,7 +1006,7 @@ public class SessionManager extends Thread {
             String confDirectoryName = configurationDirPathes.get(configurationId);
             File configurationDirectory = new File(baseDir, confDirectoryName);
             if (configurationDirectory.exists()) {
-                if (failedConfigurations.containsKey(configurationId)) {
+                if (isFailed(configurationId)) {
                     // content files for the configuration could not be restored
                     // from a file system after restart of a Depositor
                     renameConfigDirectoryToFailedExpired(configurationDirectory, configurationId);

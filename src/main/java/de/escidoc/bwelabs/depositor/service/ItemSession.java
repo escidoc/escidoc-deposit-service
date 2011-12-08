@@ -570,15 +570,15 @@ public class ItemSession extends Thread {
         return !isThreadWorking;
     }
 
-    public String get_providedCheckSum() {
+    public String getProvidedCheckSum() {
         return providedCheckSum;
     }
 
-    public File get_contentFile() {
+    public File getContentFile() {
         return content;
     }
 
-    public File get_configurationDirectory() {
+    public File getConfigurationDirectory() {
         return configDir;
     }
 
