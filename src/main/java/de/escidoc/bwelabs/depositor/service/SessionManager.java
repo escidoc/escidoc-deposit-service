@@ -170,7 +170,7 @@ public class SessionManager extends Thread {
     }
 
     private void init(File baseDir, int maxThreadNumber) throws DepositorException {
-
+        this.baseDir = baseDir;
         dirsFromLastRunToProcess = new HashMap<String, File>();
         sessions = new HashMap<String, Vector<ItemSession>>();
         failedExpiredConfDir = new HashMap<String, String>();
