@@ -735,7 +735,7 @@ public class SessionManager extends Thread {
         // compare computed digest with the one send with the request
         byte[] digest = md.digest();
         String checksum = Utility.byteArraytoHexString(digest);
-        LOG.debug("checksum[" + checksum + "]");
+        LOG.debug("Checksums: send[" + checkSumValue + "] file[" + checksum + "]");
 
         return checksum.equals(checkSumValue);
     }
