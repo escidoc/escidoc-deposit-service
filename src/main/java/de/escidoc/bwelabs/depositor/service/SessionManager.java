@@ -37,9 +37,11 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.InvalidPropertiesFormatException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Vector;
@@ -291,7 +293,8 @@ public class SessionManager extends Thread {
 
     private void storeContentToInfrastructure(final File directoryToProcess, final String configId, File[] files, int j)
         throws DepositorException {
-        new ItemSession(this, configurations.get(configId), files[j], directoryToProcess, null).start();
+        new ReingestTask(this, configurations.get(configId), files[j], directoryToProcess, null).execute();
+        // new ItemSession(this, configurations.get(configId), files[j], directoryToProcess, null).start();
     }
 
     // ////////////////////////////////////////////////////////////////////////
@@ -385,20 +388,30 @@ public class SessionManager extends Thread {
 
             Vector<ItemSession> oldSessionsForConfiguration = new Vector<ItemSession>();
 
-            Vector<ItemSession> reingestSessions = new Vector<ItemSession>();
+            List<ReingestTask> list = new ArrayList<ReingestTask>();
 
             synchronized (sessionsForConfiguration) {
                 for (ItemSession itemSession : sessionsForConfiguration) {
                     if (isFinishedAndStillFailed(itemSession)) {
                         stillFailed = true;
-                        createReingestSessions(configuration, oldSessionsForConfiguration, reingestSessions, itemSession);
+                        // Gather failed files
+                        // insert in a list
+                        // ingest them sync
+                        // list.add(new ReingestTask());
+                        try {
+                            addTask(list, configuration, oldSessionsForConfiguration, itemSession);
+                        }
+                        catch (DepositorException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
                     }
                 }
                 sessionsForConfiguration.removeAll(oldSessionsForConfiguration);
             }
 
-            for (ItemSession itemReingestSession : reingestSessions) {
-                itemReingestSession.start();
+            for (ReingestTask reingestTask : list) {
+                reingestTask.execute();
             }
 
             // if all currently finished sessions of the configuration was repaired in a meantime,
@@ -410,6 +423,14 @@ public class SessionManager extends Thread {
                 }
             }
         }
+    }
+
+    private void addTask(
+        List<ReingestTask> list, Properties configuration, Vector<ItemSession> oldSessionsForConfiguration,
+        ItemSession is) throws DepositorException {
+        list.add(new ReingestTask(this, configuration, is.getContentFile(), is.getConfigurationDirectory(), is
+            .getProvidedCheckSum()));
+        oldSessionsForConfiguration.add(is);
     }
 
     // try try to store failed content files into infrastructure
