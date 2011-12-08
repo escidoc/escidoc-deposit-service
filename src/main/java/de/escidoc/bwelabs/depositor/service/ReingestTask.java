@@ -73,12 +73,12 @@ public class ReingestTask {
 
     private SessionManager sessionManager;
 
-    private boolean isSessionFailed;
-
     private ItemHandlerClient itemClient;
 
+    private boolean isSessionFailed;
+
     public ReingestTask(SessionManager sessionManager, Properties configuration, File content, File configDir,
-        String providedCheckSum) throws DepositorException {
+        String providedCheckSum) {
         Preconditions.checkNotNull(sessionManager, "sessionManager is null: %s", sessionManager);
         Preconditions.checkNotNull(configuration, "configuration is null: %s", configuration);
         Preconditions.checkNotNull(content, "contentFile is null: %s", content);
@@ -88,67 +88,70 @@ public class ReingestTask {
         this.configuration = configuration;
         this.content = content;
         this.configDir = configDir;
-
-        assignCheckSum(configuration, content, providedCheckSum);
+        this.providedCheckSum = providedCheckSum;
     }
 
     private void assignCheckSum(Properties configuration, File content, String providedCheckSum)
         throws DepositorException {
         if (providedCheckSum == null) {
-            // if configuration is restoring from a file system, check sum for
-            // content files must be calculated again
-            FileInputStream is = null;
-            try {
-                is = new FileInputStream(content);
-            }
-            catch (FileNotFoundException e) {
-                String message =
-                    "Error on Restoring configurations from last run: "
-                        + "unexpected exception while reading a content file " + content.getName()
-                        + " of the configuration with id "
-                        + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
-                // _LOG.error(message);
-                throw new DepositorException(message);
-            }
-            String checkSumAlg = configuration.getProperty(Constants.PROPERTY_CHECKSUM_ALGORITHM);
-            MessageDigest md = null;
-            try {
-                md = MessageDigest.getInstance(checkSumAlg);
-            }
-            catch (NoSuchAlgorithmException e) {
-                String message =
-                    "Error on Restoring configurations from last run: unexpected exception " + e.getMessage();
-                // _LOG.error(message);
-                throw new DepositorException(message);
-            }
-            byte buffer[] = new byte[5000];
-            int numread;
-
-            try {
-                while ((numread = is.read(buffer, 0, 5000)) > 0) {
-                    md.update(buffer, 0, numread);
-                }
-                is.close();
-            }
-            catch (IOException e) {
-                String message =
-                    "Error on restoring configurations from last run: "
-                        + "unexpected exception while calculating a check sum for a content file " + content.getName()
-                        + " of the configuration with id "
-                        + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID) + e.getMessage();
-                // _LOG.error(message);
-                throw new DepositorException(message);
-            }
-
-            byte[] digest = md.digest();
-            this.providedCheckSum = Utility.byteArraytoHexString(digest);
+            this.providedCheckSum = calculateCheckSum(configuration, content);
         }
         else {
             this.providedCheckSum = providedCheckSum;
         }
     }
 
-    public void execute() {
+    private String calculateCheckSum(Properties configuration, File content) throws DepositorException {
+        // if configuration is restoring from a file system, check sum for
+        // content files must be calculated again
+        FileInputStream is = null;
+        try {
+            is = new FileInputStream(content);
+        }
+        catch (FileNotFoundException e) {
+            String message =
+                "Error on Restoring configurations from last run: "
+                    + "unexpected exception while reading a content file " + content.getName()
+                    + " of the configuration with id " + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID);
+            // _LOG.error(message);
+            throw new DepositorException(message);
+        }
+        String checkSumAlg = configuration.getProperty(Constants.PROPERTY_CHECKSUM_ALGORITHM);
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance(checkSumAlg);
+        }
+        catch (NoSuchAlgorithmException e) {
+            String message = "Error on Restoring configurations from last run: unexpected exception " + e.getMessage();
+            // _LOG.error(message);
+            throw new DepositorException(message);
+        }
+        byte buffer[] = new byte[5000];
+        int numread;
+
+        try {
+            while ((numread = is.read(buffer, 0, 5000)) > 0) {
+                md.update(buffer, 0, numread);
+            }
+            is.close();
+        }
+        catch (IOException e) {
+            String message =
+                "Error on restoring configurations from last run: "
+                    + "unexpected exception while calculating a check sum for a content file " + content.getName()
+                    + " of the configuration with id " + configuration.getProperty(Constants.PROPERTY_CONFIGURATION_ID)
+                    + e.getMessage();
+            // _LOG.error(message);
+            throw new DepositorException(message);
+        }
+
+        byte[] digest = md.digest();
+        return Utility.byteArraytoHexString(digest);
+    }
+
+    public void execute() throws DepositorException {
+
+        assignCheckSum(configuration, content, providedCheckSum);
         try {
             String itemId = ingest();
             checkChecksum(itemId);

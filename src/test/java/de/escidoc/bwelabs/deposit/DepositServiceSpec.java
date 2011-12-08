@@ -83,7 +83,7 @@ public class DepositServiceSpec {
 
     private static final String CONTENT_EXAMPLE = "header.txt";
 
-    private static final int HOW_MANY = 4;
+    private static final int HOW_MANY = 8;
 
     @Ignore
     @SuppressWarnings("boxing")

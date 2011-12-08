@@ -51,6 +51,7 @@ import javax.help.UnsupportedOperationException;
 import org.escidoc.core.client.ingest.exceptions.ConfigurationException;
 import org.escidoc.core.client.ingest.exceptions.IngestException;
 import org.escidoc.core.client.ingest.filesystem.FileIngester;
+import org.jfree.util.Log;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -294,7 +295,6 @@ public class SessionManager extends Thread {
     private void storeContentToInfrastructure(final File directoryToProcess, final String configId, File[] files, int j)
         throws DepositorException {
         new ReingestTask(this, configurations.get(configId), files[j], directoryToProcess, null).execute();
-        // new ItemSession(this, configurations.get(configId), files[j], directoryToProcess, null).start();
     }
 
     // ////////////////////////////////////////////////////////////////////////
@@ -398,20 +398,19 @@ public class SessionManager extends Thread {
                         // insert in a list
                         // ingest them sync
                         // list.add(new ReingestTask());
-                        try {
-                            addTask(list, configuration, oldSessionsForConfiguration, itemSession);
-                        }
-                        catch (DepositorException e) {
-                            // TODO Auto-generated catch block
-                            e.printStackTrace();
-                        }
+                        addTask(list, configuration, oldSessionsForConfiguration, itemSession);
                     }
                 }
                 sessionsForConfiguration.removeAll(oldSessionsForConfiguration);
             }
 
             for (ReingestTask reingestTask : list) {
-                reingestTask.execute();
+                try {
+                    reingestTask.execute();
+                }
+                catch (DepositorException e) {
+                    Log.error("Can not reingest...", e);
+                }
             }
 
             // if all currently finished sessions of the configuration was repaired in a meantime,
@@ -427,28 +426,10 @@ public class SessionManager extends Thread {
 
     private void addTask(
         List<ReingestTask> list, Properties configuration, Vector<ItemSession> oldSessionsForConfiguration,
-        ItemSession is) throws DepositorException {
+        ItemSession is) {
         list.add(new ReingestTask(this, configuration, is.getContentFile(), is.getConfigurationDirectory(), is
             .getProvidedCheckSum()));
         oldSessionsForConfiguration.add(is);
-    }
-
-    // try try to store failed content files into infrastructure
-    private void createReingestSessions(
-        Properties configuration, Vector<ItemSession> oldSessionsForConfiguration,
-        Vector<ItemSession> reingestSessions, ItemSession is) {
-        try {
-            ItemSession newSession =
-                new ItemSession(this, configuration, is.getContentFile(), is.getConfigurationDirectory(),
-                    is.getProvidedCheckSum());
-
-            reingestSessions.add(newSession);
-            oldSessionsForConfiguration.add(is);
-        }
-        catch (DepositorException e) {
-            // FIXME give a message
-            LOG.error(e.getMessage(), e);
-        }
     }
 
     private boolean isFinishedAndStillFailed(ItemSession is) {
@@ -459,39 +440,12 @@ public class SessionManager extends Thread {
         return failedConfigurations.containsKey(configId);
     }
 
+    // FIXME this method does nothing
     private void sendPingToCore(Vector<String> containerIds, Properties configuration) {
         // monitoring time is not over, ping a container for
         // the configuration
-
         String containerId = configuration.getProperty(Constants.PROPERTY_EXPERIMENT_ID);
         if (!containerIds.contains(containerId)) {
-
-            String handle = configuration.getProperty(Constants.PROPERTY_USER_HANDLE);
-            // ping alive for the container with the handle
-            // try {
-            // GetMethod get = EscidocConnector
-            // .pingContainer(
-            // configuration
-            // .getProperty(Constants.PROPERTY_INFRASTRUCTURE_ENDPOINT),
-            // containerId, handle);
-            // get.releaseConnection();
-            // } catch (ApplicationException e) {
-            // logger.error("Error while ping container with id "
-            // + containerId + e.getMessage());
-            // // notify the user and eSyncDemon
-            // } catch (InfrastructureException e) {
-            // logger.error("Error while ping container with id "
-            // + containerId + e.getMessage());
-            // // notify the user and eSyncDemon
-            // } catch (ConnectionException e) {
-            // logger.error("Error while ping container with id "
-            // + containerId + e.getMessage());
-            // // notify the user and eSyncDemon
-            // } catch (Throwable e) {
-            // logger.error("Unexpected error while ping container with id "
-            // + containerId + e.getMessage());
-            // // notify the user and eSyncDemon
-            // }
             containerIds.add(containerId);
         }
     }
